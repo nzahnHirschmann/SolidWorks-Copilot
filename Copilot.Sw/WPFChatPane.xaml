@@ -30,40 +30,77 @@
     </UserControl.Resources>
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="50" />
+            <RowDefinition Height="44" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <DockPanel>
-            <Button
-                Margin="5,0"
-                HorizontalAlignment="Right"
-                Command="{Binding OpenSettingsCommand}"
-                DockPanel.Dock="Right">
-                <ui:SymbolIcon Symbol="Settings28" />
-            </Button>
-            <!--<ComboBox
-                Margin="5,0"
-                ItemsSource="{Binding Skills}"
-                SelectedItem="{Binding SelectedSkill}" />-->
-        </DockPanel>
+
+        <!-- Header strip: logo + title + model badge + settings -->
+        <Border
+            Background="White"
+            BorderBrush="#19000000"
+            BorderThickness="0,0,0,1">
+            <Grid Margin="10,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Image
+                    Grid.Column="0"
+                    Width="20"
+                    Height="20"
+                    VerticalAlignment="Center"
+                    Source="/Copilot.Sw;component/Assets/Icons/SolidWorksCopilot.png" />
+                <TextBlock
+                    Grid.Column="1"
+                    Margin="8,0,0,0"
+                    VerticalAlignment="Center"
+                    FontSize="13"
+                    FontWeight="SemiBold"
+                    Text="SolidWorks Copilot" />
+                <Border
+                    Grid.Column="3"
+                    Margin="0,0,6,0"
+                    Padding="6,2"
+                    VerticalAlignment="Center"
+                    Background="#F0F2F5"
+                    CornerRadius="8"
+                    ToolTip="Active model"
+                    Visibility="{Binding IsConfigured, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <TextBlock
+                        FontSize="11"
+                        Foreground="#444"
+                        Text="{Binding CurrentModel}" />
+                </Border>
+                <Button
+                    Grid.Column="4"
+                    Padding="6"
+                    Command="{Binding OpenSettingsCommand}"
+                    ToolTip="Settings">
+                    <ui:SymbolIcon Symbol="Settings28" />
+                </Button>
+            </Grid>
+        </Border>
         <DockPanel Grid.Row="1" LastChildFill="True">
             <Border
-                Margin="2"
+                Margin="6,4,6,6"
                 BorderBrush="#19000000"
                 BorderThickness="1"
                 CornerRadius="12"
                 DockPanel.Dock="Bottom">
-                <Grid MinHeight="100">
+                <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="50" />
+                        <ColumnDefinition Width="44" />
                         <ColumnDefinition />
-                        <ColumnDefinition Width="50" />
+                        <ColumnDefinition Width="44" />
                     </Grid.ColumnDefinitions>
                     <ToggleButton
                         Name="SkillsToggleBtn"
-                        Margin="0,5"
+                        Margin="4"
                         HorizontalAlignment="Center"
-                        VerticalAlignment="Top"
+                        VerticalAlignment="Center"
                         ToolTip="Skills">
                         <ui:SymbolIcon Symbol="TableSwitch24" />
                     </ToggleButton>
@@ -86,29 +123,56 @@
                                 SelectedItem="{Binding SelectedSkill}" />
                         </Border>
                     </Popup>
-                    <TextBox
-                        Grid.Column="1"
-                        MinHeight="90"
-                        AcceptsReturn="True"
-                        Style="{DynamicResource DefaultTextBoxStyle}"
-                        Text="{Binding Question, UpdateSourceTrigger=PropertyChanged}"
-                        TextWrapping="Wrap">
-                        <TextBox.InputBindings>
-                            <KeyBinding
-                                Key="Enter"
-                                Command="{Binding SendCommand}"
-                                Modifiers="Ctrl" />
-                        </TextBox.InputBindings>
-                    </TextBox>
-                    <Button
+                    <Grid Grid.Column="1">
+                        <TextBox
+                            x:Name="QuestionBox"
+                            MinHeight="32"
+                            MaxHeight="160"
+                            Margin="0,6"
+                            VerticalAlignment="Stretch"
+                            VerticalContentAlignment="Center"
+                            AcceptsReturn="True"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Style="{DynamicResource DefaultTextBoxStyle}"
+                            Text="{Binding Question, UpdateSourceTrigger=PropertyChanged}"
+                            TextWrapping="Wrap"
+                            VerticalScrollBarVisibility="Auto">
+                            <TextBox.InputBindings>
+                                <KeyBinding
+                                    Key="Enter"
+                                    Command="{Binding SendCommand}"
+                                    Modifiers="Ctrl" />
+                            </TextBox.InputBindings>
+                        </TextBox>
+                        <TextBlock
+                            Margin="6,0"
+                            VerticalAlignment="Center"
+                            Foreground="#9AA0A6"
+                            IsHitTestVisible="False"
+                            Text="Ask Copilot to draw, model, or explain… (Ctrl+Enter)">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=QuestionBox}" Value="">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                    <ui:Button
                         Grid.Column="2"
-                        Margin="0,5"
+                        Margin="4"
                         HorizontalAlignment="Center"
-                        VerticalAlignment="Top"
+                        VerticalAlignment="Center"
+                        Appearance="Primary"
                         Command="{Binding SendCommand}"
-                        ToolTip="Send">
+                        ToolTip="Send (Ctrl+Enter)">
                         <ui:SymbolIcon Symbol="Send20" />
-                    </Button>
+                    </ui:Button>
                 </Grid>
             </Border>
             <Grid DockPanel.Dock="Top">
@@ -130,22 +194,90 @@
                     Visibility="{Binding SendCommand.IsRunning, Converter={StaticResource BoolToVisibilityConverter}}" />
             </Grid>
         </DockPanel>
+
+        <!-- Empty state: not signed in / no provider configured -->
+        <Grid
+            Grid.Row="1"
+            Margin="20,0,20,140"
+            VerticalAlignment="Center">
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding IsConfigured}" Value="False" />
+                                <Condition Binding="{Binding IsInitializing}" Value="False" />
+                            </MultiDataTrigger.Conditions>
+                            <Setter Property="Visibility" Value="Visible" />
+                        </MultiDataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Image
+                    Width="64"
+                    Height="64"
+                    Source="/Copilot.Sw;component/Assets/Icons/SolidWorksCopilot.png" />
+                <TextBlock
+                    Margin="0,16,0,4"
+                    HorizontalAlignment="Center"
+                    FontSize="16"
+                    FontWeight="SemiBold"
+                    Text="Welcome to SolidWorks Copilot" />
+                <TextBlock
+                    Margin="0,0,0,20"
+                    HorizontalAlignment="Center"
+                    Foreground="#666"
+                    Text="Sign in to start chatting and modelling."
+                    TextAlignment="Center"
+                    TextWrapping="Wrap" />
+                <ui:Button
+                    Padding="14,8"
+                    HorizontalAlignment="Center"
+                    Appearance="Primary"
+                    Command="{Binding OpenSettingsCommand}"
+                    Content="Sign in with GitHub" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Empty state: signed in, no conversation yet -->
         <StackPanel
             Grid.Row="1"
-            Height="100"
-            Margin="0,100,0,0"
-            VerticalAlignment="Top"
-            Visibility="{Binding HasItem, Converter={StaticResource InvertBoolToVisibilityConverter}}">
+            Margin="20,40,20,140"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center">
+            <StackPanel.Style>
+                <Style TargetType="StackPanel">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding IsConfigured}" Value="True" />
+                                <Condition Binding="{Binding HasItem}" Value="False" />
+                            </MultiDataTrigger.Conditions>
+                            <Setter Property="Visibility" Value="Visible" />
+                        </MultiDataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </StackPanel.Style>
             <Image
-                Width="50"
-                Height="50"
+                Width="56"
+                Height="56"
                 Source="/Copilot.Sw;component/Assets/Icons/SolidWorksCopilot.png" />
             <TextBlock
-                Margin="0,30"
+                Margin="0,16,0,4"
                 HorizontalAlignment="Center"
                 FontSize="15"
                 FontWeight="SemiBold"
-                Text="SolidWorks Copilot" />
+                Text="How can I help with your model?" />
+            <TextBlock
+                Margin="0,0,0,8"
+                HorizontalAlignment="Center"
+                Foreground="#666"
+                Text="Ask me to sketch, create features, or explain part geometry."
+                TextAlignment="Center"
+                TextWrapping="Wrap" />
         </StackPanel>
     </Grid>
 </UserControl>

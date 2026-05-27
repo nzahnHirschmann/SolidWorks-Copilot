@@ -67,6 +67,12 @@ public partial class WPFChatPaneViewModel : ObservableObject
 
     public bool HasItem => Conversation?.Messages?.Any() == true;
 
+    /// <summary>True once an AI provider has been configured and a kernel built.</summary>
+    public bool IsConfigured => _configLoadResult;
+
+    /// <summary>Model id of the default chat-completion service, for display in the header.</summary>
+    public string? CurrentModel { get; private set; }
+
     public AsyncRelayCommand SendCommand { get => _sendCommand ??= new AsyncRelayCommand(SendAsync, CanSend); }
     #endregion
 
@@ -107,12 +113,8 @@ public partial class WPFChatPaneViewModel : ObservableObject
                 }
             }).ConfigureAwait(true);
 
-            if (!_configLoadResult)
-            {
-                Conversation.Messages.Add(
-                    Message.CreateError("No AI provider is configured. Open Settings to sign in."));
-                OnPropertyChanged(nameof(HasItem));
-            }
+            OnPropertyChanged(nameof(IsConfigured));
+            OnPropertyChanged(nameof(CurrentModel));
         }
         finally
         {
@@ -142,6 +144,8 @@ public partial class WPFChatPaneViewModel : ObservableObject
 
         Kernel = builder.Build();
         _configLoadResult = true;
+        CurrentModel = configs.FirstOrDefault(c => c.IsDefault)?.Model
+            ?? configs.FirstOrDefault()?.Model;
     }
     #endregion
 
@@ -168,7 +172,10 @@ public partial class WPFChatPaneViewModel : ObservableObject
             {
                 settingWindow.Save();
             }
-
+    OnPropertyChanged(nameof(IsConfigured));
+            OnPropertyChanged(nameof(CurrentModel));
+            SendCommand.NotifyCanExecuteChanged();
+        
             BuildKernel();
         }
         catch (Exception ex)

@@ -128,21 +128,25 @@ breaks in the same way.
 
 ## 3. P2 — Assembly modelling
 
-- [ ] `InsertComponent(path, x, y, z, rotation?)` /
+- [x] `InsertComponent(path, x, y, z, configurationName?)` /
   `InsertComponentFromOpenDoc`
-- [ ] `MoveComponent`, `FixComponent`, `FloatComponent`,
-  `DeleteComponent`
-- [ ] **Mates** — `AddMate(type, ref1, ref2, distance?, angle?)`:
+- [x] `FixSelectedComponent`, `FloatSelectedComponent` (selection-based)
+- [ ] `MoveComponent`, `DeleteComponent`
+- [x] **Mates** — `AddMate(type, distance?, angle?, alignment?, flip?)`:
   Coincident, Concentric, Parallel, Perpendicular, Tangent, Distance,
-  Angle, Lock, Width, Cam, Gear, Slot
-- [ ] `ReplaceComponent(old, newPath)`, `SuppressComponent`,
-  `ResolveComponent`
-- [ ] `ListComponents()`, `ListMates()`, `GetBoM()` — flat & indented
+  Angle, Lock, Symmetric, Width (pre-select two refs)
+- [ ] Remaining mate types: Cam, Gear, Slot, Path, Hinge, Screw
+- [ ] `ReplaceComponent(old, newPath)`
+- [x] `SuppressSelectedComponent`, `ResolveSelectedComponent`
+- [x] `ListComponents(topLevelOnly)`
+- [ ] `ListMates()`, `GetBoM()` — flat & indented
 - [ ] `ExplodedView(steps[])`
-- [ ] **Interference / clearance**: `RunInterferenceDetection()` →
-  component pairs + volumes; `MeasureClearance(comp1, comp2)`. This is
-  half of *“check accuracy”* in assemblies.
-- [ ] `RebuildAssembly`, `ForceRebuild`, `EvaluateMateErrors()`
+- [x] **Interference detection**: `RunInterferenceDetection()` →
+  component pairs + volumes. This is half of *“check accuracy”* in
+  assemblies.
+- [ ] `MeasureClearance(comp1, comp2)`
+- [x] `ForceRebuild`
+- [ ] `EvaluateMateErrors()`
 
 ---
 

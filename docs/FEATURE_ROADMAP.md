@@ -74,7 +74,7 @@ breaks in the same way.
 - [x] `ToggleConstructionGeometry()` (acts on selection)
 - [x] `SketchOffset(distance)` (offsets the current selection / chain)
 - [x] `SketchTrim(x, y, trimType)`, `LinearSketchPattern`, `CircularSketchPattern`
-- [ ] `MirrorEntities(axis)`
+- [x] `MirrorSketchEntities()` — pre-select entities + centre line
 - [x] `AddRelation(type)` — Horizontal, Vertical, Coincident, Collinear,
   Concentric, Equal, Tangent, Perpendicular, Parallel, Fix, Midpoint,
   Symmetric (acts on selection)
@@ -101,15 +101,17 @@ breaks in the same way.
 - [x] `Shell(thickness, outward)` (selection-based face removal)
 - [x] `Draft(angleDegrees, flip)` (neutral plane + faces pre-selected)
 - [x] `SimpleHole(diameter, depth, throughAll)` — basic hole
-- [ ] `HoleWizard(spec, points[])` (HoleWizard5 is wired in the API but
-  the spec-driven wrapper is still pending)
+- [x] `InsertTappedHole(size, depth, standard, endCondition)` — HoleWizard5
+  wrapper for the common tapped-hole case (ISO/DIN/ANSI/JIS/BSI/GB)
+- [ ] Full `HoleWizard(spec, points[])` for counter-bore / counter-sink /
+  pipe-tap variants
 - [ ] `Thread(face, spec)`
 - [x] `LinearPattern`, `CircularPattern`, `MirrorFeature`
 
 ### 2.5 Body / surfacing
 
-- [ ] `CombineBodies(op, bodies[])` (Add / Subtract / Common) — needs
-  Body2 enumeration helper
+- [x] `CombineBodies(op)` — ADD / SUBTRACT / COMMON across all solid
+  bodies (first body = main, rest = tools)
 - [x] `MoveCopyBody(...)`, `DeleteBody(...)`
 - [ ] `SplitBody(...)`
 - [x] `ThickenSurface(thickness, direction)`
@@ -121,7 +123,8 @@ breaks in the same way.
   `ListConfigurations()`
 - [x] `AddEquation("\"D1@Sketch1\" = \"D2@Sketch2\" * 2")` — global
   variables fall out of this naturally
-- [ ] Dedicated `AddGlobalVariable(name, expression)` wrapper
+- [x] `AddGlobalVariable(name, expression)` — typed wrapper that quotes
+  the variable name automatically
 
 ### 2.7 Materials & mass
 

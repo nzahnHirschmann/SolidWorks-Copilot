@@ -276,6 +276,7 @@ public sealed class GitHubOAuth
     private static IReadOnlyList<string> ParseCatalog(string body)
     {
         var ids = new List<string>();
+        var chatIds = new List<string>();
         using var doc = JsonDocument.Parse(body);
 
         // Catalog historically returns either a bare array or an object
@@ -311,15 +312,77 @@ public sealed class GitHubOAuth
                 id = nameEl.GetString();
             }
 
-            if (!string.IsNullOrWhiteSpace(id))
+            if (string.IsNullOrWhiteSpace(id))
             {
-                ids.Add(id!);
+                continue;
+            }
+
+            ids.Add(id!);
+
+            if (IsChatCapable(entry))
+            {
+                chatIds.Add(id!);
             }
         }
 
-        // De-dupe and sort for a stable picker.
-        ids.Sort(StringComparer.OrdinalIgnoreCase);
-        return ids;
+        // Prefer the chat-capable subset when we managed to detect it.
+        // Fall back to the full list if the catalog schema didn't expose
+        // any of the fields we recognise (so the user sees something).
+        var result = chatIds.Count > 0 ? chatIds : ids;
+        result.Sort(StringComparer.OrdinalIgnoreCase);
+        return result;
+    }
+
+    /// <summary>
+    /// Best-effort check that a catalog entry exposes a chat-completion
+    /// inference task. The catalog has gone through several schema
+    /// revisions, so we tolerate a few different field shapes.
+    /// </summary>
+    private static bool IsChatCapable(JsonElement entry)
+    {
+        // Newer schema: "supported_input_modalities" / "task" /
+        // "inference_tasks". Older schema: "tags" / "capabilities".
+        return ContainsToken(entry, "task", "chat")
+            || ContainsToken(entry, "task", "chat-completion")
+            || ContainsToken(entry, "inference_tasks", "chat-completion")
+            || ContainsToken(entry, "inference_tasks", "chat")
+            || ContainsToken(entry, "capabilities", "chat-completion")
+            || ContainsToken(entry, "capabilities", "chat")
+            || ContainsToken(entry, "tags", "chat")
+            || ContainsToken(entry, "tags", "multipurpose");
+    }
+
+    private static bool ContainsToken(JsonElement entry, string property, string token)
+    {
+        if (!entry.TryGetProperty(property, out var el))
+        {
+            return false;
+        }
+
+        if (el.ValueKind == JsonValueKind.String)
+        {
+            var s = el.GetString();
+            return !string.IsNullOrEmpty(s) &&
+                s!.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        if (el.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in el.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.String)
+                {
+                    var s = item.GetString();
+                    if (!string.IsNullOrEmpty(s) &&
+                        string.Equals(s, token, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     private static string ResolveClientId()

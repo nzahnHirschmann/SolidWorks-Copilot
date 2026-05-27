@@ -9,8 +9,8 @@
     xmlns:viewmodels="clr-namespace:Copilot.Sw.ViewModels"
     Name="window"
     Title="Settings"
-    Width="800"
-    Height="450"
+    Width="640"
+    Height="520"
     d:DataContext="{d:DesignInstance Type=viewmodels:SettingsWindowViewModel}"
     WindowStartupLocation="CenterScreen"
     mc:Ignorable="d">
@@ -26,210 +26,135 @@
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Window.Resources>
-    <Grid>
+    <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition />
             <RowDefinition Height="50" />
         </Grid.RowDefinitions>
-        <TabControl>
-            <TabItem Header="GitHub Copilot">
-                <Grid Margin="12">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition />
-                    </Grid.RowDefinitions>
 
+        <StackPanel>
+            <TextBlock
+                FontSize="20"
+                FontWeight="SemiBold"
+                Text="Sign in with GitHub" />
+            <TextBlock
+                Margin="0,4,0,16"
+                TextWrapping="Wrap"
+                Text="This add-in talks to GitHub Models. Sign in with your GitHub account using the device flow — no token pasting required." />
+
+            <!-- Model picker -->
+            <Grid Margin="0,4,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                    VerticalAlignment="Center"
+                    Margin="0,0,8,0"
+                    FontWeight="SemiBold"
+                    Text="Model:" />
+                <ComboBox
+                    Grid.Column="1"
+                    IsEditable="True"
+                    ItemsSource="{Binding GitHubModelPresets}"
+                    Text="{Binding GitHubModel, UpdateSourceTrigger=PropertyChanged}" />
+            </Grid>
+
+            <!-- Idle state: Sign-in button -->
+            <StackPanel
+                Orientation="Horizontal"
+                Margin="0,8,0,8"
+                Visibility="{Binding IsAwaitingDeviceCode, Converter={StaticResource InvertBoolToVisibilityConverter}}">
+                <ui:Button
+                    Appearance="Primary"
+                    Command="{Binding SignInWithGitHubCommand}"
+                    Content="Sign in with GitHub"
+                    Icon="PersonAccounts24"
+                    IsEnabled="{Binding IsSigningIn, Converter={StaticResource InvertBoolConverter}}" />
+                <ui:Button
+                    Margin="8,0,0,0"
+                    Appearance="Secondary"
+                    Command="{Binding SignOutCommand}"
+                    Content="Sign out"
+                    Icon="SignOut24"
+                    Visibility="{Binding IsSignedIn, Converter={StaticResource BoolToVisibilityConverter}}" />
+            </StackPanel>
+
+            <!-- Awaiting state: device code + verification URL + cancel -->
+            <Border
+                Margin="0,8,0,8"
+                Padding="12"
+                BorderBrush="#CCCCCC"
+                BorderThickness="1"
+                CornerRadius="6"
+                Visibility="{Binding IsAwaitingDeviceCode, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel>
                     <TextBlock
-                        FontSize="18"
                         FontWeight="SemiBold"
-                        Text="Sign in with GitHub Models" />
+                        Text="1. Open the verification page" />
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontFamily="Consolas"
+                            Text="{Binding DeviceVerificationUri}" />
+                        <ui:Button
+                            Margin="8,0,0,0"
+                            Appearance="Secondary"
+                            Command="{Binding OpenVerificationUriCommand}"
+                            Content="Open in browser"
+                            Icon="Open24" />
+                    </StackPanel>
 
                     <TextBlock
-                        Grid.Row="1"
-                        Margin="0,4,0,12"
-                        TextWrapping="Wrap"
-                        Text="Connect to GitHub's hosted Copilot / GitHub Models catalog. Generate a token, paste it below, pick a model and click Sign in." />
+                        FontWeight="SemiBold"
+                        Text="2. Enter this code" />
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontFamily="Consolas"
+                            FontSize="20"
+                            FontWeight="Bold"
+                            Text="{Binding DeviceUserCode}" />
+                        <ui:Button
+                            Margin="12,0,0,0"
+                            Appearance="Secondary"
+                            Command="{Binding CopyDeviceCodeCommand}"
+                            Content="Copy"
+                            Icon="Copy24" />
+                    </StackPanel>
+
+                    <TextBlock
+                        Margin="0,4,0,8"
+                        FontStyle="Italic"
+                        Text="Waiting for you to approve sign-in on GitHub…"
+                        TextWrapping="Wrap" />
 
                     <ui:Button
-                        Grid.Row="2"
-                        Margin="0,0,0,12"
                         HorizontalAlignment="Left"
                         Appearance="Secondary"
-                        Command="{Binding OpenGitHubTokenPageCommand}"
-                        Content="1. Get a token on GitHub…"
-                        Icon="Link24" />
+                        Command="{Binding CancelSignInCommand}"
+                        Content="Cancel"
+                        Icon="Dismiss24" />
+                </StackPanel>
+            </Border>
 
-                    <TextBlock
-                        Grid.Row="3"
-                        Margin="0,4,0,4"
-                        FontWeight="SemiBold"
-                        Text="2. Paste GitHub token" />
-                    <ui:TextBox
-                        Grid.Row="4"
-                        Margin="0,0,0,8"
-                        PlaceholderText="ghp_… or github_pat_…"
-                        Text="{Binding GitHubToken, UpdateSourceTrigger=PropertyChanged}" />
+            <!-- Status line (shared) -->
+            <TextBlock
+                Margin="0,8,0,0"
+                Text="{Binding GitHubStatus}"
+                TextWrapping="Wrap" />
 
-                    <Grid Grid.Row="5" Margin="0,4,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock
-                            VerticalAlignment="Center"
-                            Margin="0,0,8,0"
-                            FontWeight="SemiBold"
-                            Text="3. Model:" />
-                        <ComboBox
-                            Grid.Column="1"
-                            IsEditable="True"
-                            ItemsSource="{Binding GitHubModelPresets}"
-                            Text="{Binding GitHubModel, UpdateSourceTrigger=PropertyChanged}" />
-                    </Grid>
+            <!-- Signed-in indicator -->
+            <TextBlock
+                Margin="0,8,0,0"
+                FontStyle="Italic"
+                Foreground="#188038"
+                Text="{Binding SignedInIdentity}"
+                TextWrapping="Wrap"
+                Visibility="{Binding IsSignedIn, Converter={StaticResource BoolToVisibilityConverter}}" />
+        </StackPanel>
 
-                    <StackPanel
-                        Grid.Row="6"
-                        Margin="0,8,0,8"
-                        Orientation="Horizontal">
-                        <ui:Button
-                            Appearance="Primary"
-                            Command="{Binding SignInWithGitHubCommand}"
-                            Content="Sign in"
-                            Icon="Checkmark28" />
-                        <TextBlock
-                            Margin="12,0,0,0"
-                            VerticalAlignment="Center"
-                            Text="{Binding GitHubStatus}"
-                            TextWrapping="Wrap" />
-                    </StackPanel>
-                </Grid>
-            </TabItem>
-            <TabItem Header="Advanced (OpenAI / Azure)">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="40" />
-                        <RowDefinition />
-                        <RowDefinition Height="130" />
-                    </Grid.RowDefinitions>
-                    <DockPanel>
-                        <TextBlock
-                            HorizontalAlignment="Left"
-                            VerticalAlignment="Center"
-                            DockPanel.Dock="Left"
-                            FontSize="14"
-                            FontWeight="SemiBold"
-                            Text="LLM Server:" />
-                        <Button
-                            Margin="10,0"
-                            HorizontalAlignment="Right"
-                            Command="{Binding SetAsDefaultCommand}"
-                            Content="Set as default"
-                            DockPanel.Dock="Right" />
-                        <Button
-                            Margin="5,0"
-                            HorizontalAlignment="Right"
-                            Command="{Binding DeleteCommand}"
-                            DockPanel.Dock="Right">
-                            <ui:SymbolIcon Symbol="Delete24" />
-                        </Button>
-                        <Button
-                            HorizontalAlignment="Right"
-                            Command="{Binding AddCommand}"
-                            DockPanel.Dock="Right">
-                            <ui:SymbolIcon Symbol="Add24" />
-                        </Button>
-                    </DockPanel>
-                    <ListBox
-                        Name="TextCompletionConfigsListBox"
-                        Grid.Row="1"
-                        ItemsSource="{Binding TextCompletionConfigs}"
-                        SelectedItem="{Binding SelectedTextCompletionConfig}">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition />
-                                        <RowDefinition />
-                                    </Grid.RowDefinitions>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="40" />
-                                        <ColumnDefinition />
-                                    </Grid.ColumnDefinitions>
-                                    <ui:SymbolIcon
-                                        Grid.RowSpan="2"
-                                        Symbol="Checkmark48"
-                                        Visibility="{Binding IsDefault, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                    <TextBlock Grid.Column="1" Text="{Binding}" />
-                                    <TextBlock
-                                        Grid.Row="1"
-                                        Grid.Column="1"
-                                        Text="{Binding Apikey}" />
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                    <Grid Grid.Row="2">
-                        <Grid.RowDefinitions>
-                            <RowDefinition />
-                            <RowDefinition />
-                            <RowDefinition />
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition />
-                            <ColumnDefinition />
-                        </Grid.ColumnDefinitions>
-                        <ui:TextBox
-                            Margin="5,0"
-                            PlaceholderText="Name"
-                            Text="{Binding SelectedTextCompletionConfig.Name}" />
-                        <Grid Grid.Column="1" Margin="5,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="60" />
-                                <ColumnDefinition />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock
-                                VerticalAlignment="Center"
-                                FontSize="14"
-                                FontWeight="SemiBold"
-                                Text="Type:" />
-                            <ComboBox
-                                Grid.Column="1"
-                                ItemsSource="{Binding SelectedTextCompletionConfig.Type, Converter={StaticResource EnumToItemsConverter}}"
-                                Text="{Binding SelectedTextCompletionConfig.Type, Converter={StaticResource EnumStringConverter}}" />
-                        </Grid>
-                        <ui:TextBox
-                            Grid.Row="1"
-                            Margin="5,0"
-                            PlaceholderText="Api key"
-                            Text="{Binding SelectedTextCompletionConfig.Apikey}" />
-                        <ui:TextBox
-                            Grid.Row="1"
-                            Grid.Column="1"
-                            Margin="5,0"
-                            PlaceholderText="Model"
-                            Text="{Binding SelectedTextCompletionConfig.Model}" />
-                        <ui:TextBox
-                            Grid.Row="2"
-                            Margin="5,0"
-                            PlaceholderText="EndPoint"
-                            Text="{Binding SelectedTextCompletionConfig.Endpoint}" />
-                        <ui:TextBox
-                            Grid.Row="2"
-                            Grid.Column="1"
-                            Margin="5,0"
-                            PlaceholderText="OrgId"
-                            Text="{Binding SelectedTextCompletionConfig.Org}" />
-
-                    </Grid>
-                </Grid>
-            </TabItem>
-        </TabControl>
+        <!-- Buttons row -->
         <Grid Grid.Row="1">
             <ui:Button
                 Margin="0,0,120,0"
@@ -242,7 +167,7 @@
             <ui:Button
                 Margin="5"
                 HorizontalAlignment="Right"
-                Content="Cancle(_C)"
+                Content="Cancel(_C)"
                 IsCancel="True" />
         </Grid>
     </Grid>

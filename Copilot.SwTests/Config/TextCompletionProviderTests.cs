@@ -49,7 +49,7 @@ public class TextCompletionProviderTests
             new()
             {
                 Name = "primary",
-                Type = ServerType.OpenAI,
+                Type = ServerType.GitHubModels,
                 Model = "gpt-4o-mini",
                 Apikey = "sk-fake-test-key-1234567890",
                 IsDefault = true,
@@ -62,7 +62,7 @@ public class TextCompletionProviderTests
 
         var c = loaded[0];
         Assert.AreEqual("primary", c.Name);
-        Assert.AreEqual(ServerType.OpenAI, c.Type);
+        Assert.AreEqual(ServerType.GitHubModels, c.Type);
         Assert.AreEqual("gpt-4o-mini", c.Model);
         Assert.AreEqual("sk-fake-test-key-1234567890", c.Apikey);
         Assert.IsTrue(c.IsDefault);
@@ -76,7 +76,7 @@ public class TextCompletionProviderTests
         const string secret = "sk-this-must-not-appear-in-the-file";
         provider.Write(new List<TextCompletionConfig>
         {
-            new() { Name = "x", Type = ServerType.OpenAI, Apikey = secret }
+            new() { Name = "x", Type = ServerType.GitHubModels, Apikey = secret }
         });
 
         var raw = File.ReadAllText(provider.FilePathName);
@@ -92,7 +92,7 @@ public class TextCompletionProviderTests
         // Simulate a pre-encryption settings file written by an older build.
         var json = System.Text.Json.JsonSerializer.Serialize(new List<TextCompletionConfig>
         {
-            new() { Name = "old", Type = ServerType.OpenAI, Apikey = "legacy-plain" }
+            new() { Name = "old", Type = ServerType.GitHubModels, Apikey = "legacy-plain" }
         });
         File.WriteAllText(provider.FilePathName, json);
 

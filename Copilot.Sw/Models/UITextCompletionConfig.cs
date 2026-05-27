@@ -3,42 +3,29 @@ using Copilot.Sw.Config;
 
 namespace Copilot.Sw.Models;
 
-public sealed partial class UITextCompletionConfig:ObservableObject
+/// <summary>
+/// MVVM-friendly view of <see cref="TextCompletionConfig"/>. Only represents
+/// a GitHub Models connection.
+/// </summary>
+public sealed partial class UITextCompletionConfig : ObservableObject
 {
-    /// <summary>
-    /// name for this config
-    /// </summary>
-    [ObservableProperty]public string? _name;
+    /// <summary>Friendly name for this saved connection.</summary>
+    [ObservableProperty] public string? _name;
 
-    /// <summary>
-    /// type openai of azure
-    /// </summary>
-    [ObservableProperty]public ServerType _type;
+    /// <summary>Provider kind. Always <see cref="ServerType.GitHubModels"/>.</summary>
+    [ObservableProperty] public ServerType _type = ServerType.GitHubModels;
 
-    /// <summary>
-    /// the llm model
-    /// </summary>
+    /// <summary>GitHub Models model id.</summary>
     [ObservableProperty] public string? _model;
 
-    /// <summary>
-    /// endpoint if using azure
-    /// </summary>
+    /// <summary>Inference endpoint base URL.</summary>
     [ObservableProperty] public string? _endpoint;
 
-    /// <summary>
-    /// the api key for openai or azure
-    /// </summary>
+    /// <summary>GitHub OAuth token (encrypted at rest).</summary>
     [ObservableProperty] public string? _apikey;
 
-    /// <summary>
-    /// org,optional
-    /// </summary>
-    [ObservableProperty] public string? _org;
-
-    /// <summary>
-    /// 是否作为默认
-    /// </summary>
-    [ObservableProperty]private bool _isDefault;
+    /// <summary>Whether this entry is the kernel's default chat service.</summary>
+    [ObservableProperty] private bool _isDefault;
 
     public override string ToString()
     {
@@ -58,7 +45,6 @@ public sealed partial class UITextCompletionConfig:ObservableObject
             Endpoint = Endpoint,
             Name = Name,
             Type = Type,
-            Org = Org,
             Apikey = Apikey,
             IsDefault = IsDefault,
         };

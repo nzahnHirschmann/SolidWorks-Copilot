@@ -173,6 +173,8 @@ Effort key: **S** ≈ <½ day · **M** ≈ 1–2 days · **L** ≈ ≥1 week.
 ### Phase 6 — Long horizon
 
 - [x] **P6.1 (L)** Upgraded Semantic Kernel from `0.13.277.1-preview` to **`1.76.0`** (chat-completion only, function-calling via `FunctionChoiceBehavior.Auto()` instead of the obsolete `SequentialPlanner`). Custom `GitHubModelsTextCompletion` adapter deleted; GitHub Models is now served by the stock OpenAI connector pointed at `https://models.github.ai/inference/` via a custom `HttpClient.BaseAddress`. All `[SKFunction]`/`[SKFunctionName]` replaced with `[KernelFunction]` + `[Description]`. Plugins loaded with `kernel.Plugins.AddFromObject(...)`.
+- [x] **P6.3 (L)** Locked the add-in to GitHub Models only. Removed the `ServerType.OpenAI` and `ServerType.Azure` branches from `KernelExtensions.LoadConfigs`, dropped the `Org` field from the persisted schema and the UI, and collapsed Settings to a single GitHub sign-in pane.
+- [x] **P6.4 (L)** Replaced PAT-paste sign-in with a **GitHub OAuth device flow** (new [Copilot.Sw/Config/GitHubOAuth.cs](../Copilot.Sw/Config/GitHubOAuth.cs)). Settings now shows the user code + verification URL and polls `https://github.com/login/oauth/access_token` for the access token, which is stored DPAPI-encrypted via the existing `Apikey` flow. The OAuth App `client_id` is resolved from `SOLIDWORKS_COPILOT_GITHUB_CLIENT_ID` (env var) or a `github-oauth-client-id.txt` sidecar — register the OAuth App at https://github.com/settings/applications/new with Device Flow enabled.
 - [ ] **P6.2 (L)** Move skill discovery to support both file-system prompts and native skills uniformly; expose a "Skills" panel in Settings.
 
 ---

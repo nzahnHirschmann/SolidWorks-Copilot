@@ -37,53 +37,28 @@ public static class KernelExtensions
             // explicitly via PromptExecutionSettings.ServiceId.
             var serviceId = isDefault ? null : config.Name;
 
-            switch (config.Type)
+            // GitHub Models exposes an OpenAI-compatible chat endpoint.
+            // Point the OpenAI connector at it via a BaseAddress on a
+            // dedicated HttpClient.
+            var endpoint = string.IsNullOrWhiteSpace(config.Endpoint)
+                ? TextCompletionConfig.GitHubModelsDefaultEndpoint
+                : config.Endpoint!;
+            if (!endpoint.EndsWith("/", StringComparison.Ordinal))
             {
-                case ServerType.OpenAI:
-                    builder.AddOpenAIChatCompletion(
-                        modelId: config.Model!,
-                        apiKey: config.Apikey!,
-                        orgId: string.IsNullOrWhiteSpace(config.Org) ? null : config.Org,
-                        serviceId: serviceId);
-                    break;
-
-                case ServerType.Azure:
-                    // Legacy schema: Model holds the deployment name; Org
-                    // holds the endpoint URL.
-                    builder.AddAzureOpenAIChatCompletion(
-                        deploymentName: config.Model!,
-                        endpoint: config.Org!,
-                        apiKey: config.Apikey!,
-                        serviceId: serviceId);
-                    break;
-
-                case ServerType.GitHubModels:
-                {
-                    // GitHub Models exposes an OpenAI-compatible chat
-                    // endpoint. Point the OpenAI connector at it via a
-                    // BaseAddress on a dedicated HttpClient.
-                    var endpoint = string.IsNullOrWhiteSpace(config.Endpoint)
-                        ? TextCompletionConfig.GitHubModelsDefaultEndpoint
-                        : config.Endpoint!;
-                    if (!endpoint.EndsWith("/", StringComparison.Ordinal))
-                    {
-                        endpoint += "/";
-                    }
-
-                    var httpClient = new HttpClient
-                    {
-                        BaseAddress = new Uri(endpoint),
-                    };
-
-                    builder.AddOpenAIChatCompletion(
-                        modelId: config.Model!,
-                        apiKey: config.Apikey!,
-                        orgId: null,
-                        serviceId: serviceId,
-                        httpClient: httpClient);
-                    break;
-                }
+                endpoint += "/";
             }
+
+            var httpClient = new HttpClient
+            {
+                BaseAddress = new Uri(endpoint),
+            };
+
+            builder.AddOpenAIChatCompletion(
+                modelId: config.Model!,
+                apiKey: config.Apikey!,
+                orgId: null,
+                serviceId: serviceId,
+                httpClient: httpClient);
         }
 
         return true;

@@ -4,6 +4,7 @@
     xmlns:converters="clr-namespace:Copilot.Sw.Converters">
     <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
     <converters:InvertBoolToVisibilityConverter x:Key="InvertBoolToVisibilityConverter" />
+    <converters:InvertBoolConverter x:Key="InvertBoolConverter" />
     <converters:EnumToItemsConverter x:Key="EnumToItemsConverter" />
     <converters:EnumStringConverter x:Key="EnumStringConverter" />
 </ResourceDictionary>

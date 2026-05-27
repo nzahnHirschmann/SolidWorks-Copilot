@@ -1,18 +1,19 @@
 ﻿namespace Copilot.Sw.Config;
 
+/// <summary>
+/// Provider kind. Currently only GitHub Models is supported; the enum is
+/// retained so older settings files (which serialise this field) keep
+/// deserialising.
+/// </summary>
 public enum ServerType
 {
-    OpenAI,
-    Azure,
-
     /// <summary>
     /// GitHub Models (https://models.github.ai/inference).
-    /// Use a GitHub Personal Access Token with the "models:read" scope
-    /// as <see cref="TextCompletionConfig.Apikey"/>. The
-    /// <see cref="TextCompletionConfig.Model"/> field expects a GitHub
-    /// Models identifier such as "openai/gpt-4o-mini" or "openai/gpt-4o".
+    /// Authentication uses a GitHub OAuth token obtained via the device
+    /// flow (see <see cref="GitHubOAuth"/>) and is stored in
+    /// <see cref="TextCompletionConfig.Apikey"/>.
     /// </summary>
-    GitHubModels,
+    GitHubModels = 2,
 }
 
 public sealed class TextCompletionConfig
@@ -20,39 +21,26 @@ public sealed class TextCompletionConfig
     /// <summary>Default GitHub Models inference endpoint.</summary>
     public const string GitHubModelsDefaultEndpoint = "https://models.github.ai/inference/";
 
-    /// <summary>
-    /// name for this config
-    /// </summary>
+    /// <summary>Friendly name for the saved connection.</summary>
     public string? Name { get; set; }
 
-    /// <summary>
-    /// type openai of azure
-    /// </summary>
-    public ServerType Type { get; set; }
+    /// <summary>Provider kind. Always <see cref="ServerType.GitHubModels"/>.</summary>
+    public ServerType Type { get; set; } = ServerType.GitHubModels;
 
-    /// <summary>
-    /// the llm model
-    /// </summary>
+    /// <summary>GitHub Models model id, e.g. <c>openai/gpt-4o-mini</c>.</summary>
     public string? Model { get; set; }
 
-    /// <summary>
-    /// endpoint if using azure
-    /// </summary>
+    /// <summary>Inference endpoint base URL. Defaults to <see cref="GitHubModelsDefaultEndpoint"/>.</summary>
     public string? Endpoint { get; set; }
 
     /// <summary>
-    /// the api key for openai or azure
+    /// GitHub OAuth token (encrypted at rest via DPAPI). The plaintext
+    /// value is supplied to the OpenAI connector as the bearer token.
     /// </summary>
     public string? Apikey { get; set; }
 
     /// <summary>
-    /// org,optional
-    /// </summary>
-    public string? Org { get; set; }
-
-    /// <summary>
-    /// When multiple configs are present, the one flagged as default is
-    /// used as Semantic Kernel's default text-completion service.
+    /// Marks this entry as the kernel's default chat-completion service.
     /// </summary>
     public bool IsDefault { get; set; }
 }

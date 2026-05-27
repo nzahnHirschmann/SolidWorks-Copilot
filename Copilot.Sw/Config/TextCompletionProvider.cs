@@ -68,7 +68,6 @@ public class TextCompletionProvider:ITextCompletionProvider
                 Type = c.Type,
                 Model = c.Model,
                 Endpoint = c.Endpoint,
-                Org = c.Org,
                 IsDefault = c.IsDefault,
                 Apikey = Protect(c.Apikey),
             });

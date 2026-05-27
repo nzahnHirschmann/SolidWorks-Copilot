@@ -3,32 +3,21 @@ using CommunityToolkit.Mvvm.Input;
 using Copilot.Sw.Config;
 using Copilot.Sw.Extensions;
 using Copilot.Sw.Models;
-using MvvmDialogs;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 
 namespace Copilot.Sw.ViewModels;
 
-public partial class SettingsWindowViewModel :
-    ObservableObject
+public partial class SettingsWindowViewModel : ObservableObject
 {
     #region Fields
     private const string GitHubConfigName = "GitHub Copilot";
-    private static readonly HttpClient s_githubClient = new HttpClient();
-
-    [ObservableProperty]
-    private UITextCompletionConfig? _selectedTextCompletionConfig;
-
-    [ObservableProperty]
-    private string? _gitHubToken;
 
     [ObservableProperty]
     private string _gitHubModel = "openai/gpt-4o-mini";
@@ -42,43 +31,60 @@ public partial class SettingsWindowViewModel :
     [ObservableProperty]
     private bool _isSigningIn;
 
-    private ITextCompletionProvider _textCompletionProvider;
+    [ObservableProperty]
+    private bool _isAwaitingDeviceCode;
+
+    [ObservableProperty]
+    private string? _deviceUserCode;
+
+    [ObservableProperty]
+    private string? _deviceVerificationUri;
+
+    [ObservableProperty]
+    private bool _isSignedIn;
+
+    [ObservableProperty]
+    private string? _signedInIdentity;
+
+    private readonly ITextCompletionProvider _textCompletionProvider;
+    private CancellationTokenSource? _signInCts;
     #endregion
 
     #region Ctor
-    public SettingsWindowViewModel(
-        ITextCompletionProvider textCompletionProvider)
+    public SettingsWindowViewModel(ITextCompletionProvider textCompletionProvider)
     {
         _textCompletionProvider = textCompletionProvider;
         TextCompletionConfigs =
-            _textCompletionProvider.Load()?.Select(t => ToUI(t))?.ToObservableCollection() ??
+            _textCompletionProvider.Load()?.Select(ToUI).ToObservableCollection() ??
             new ObservableCollection<UITextCompletionConfig>();
 
-        // Pre-fill the GitHub fields from an existing GitHub Models entry so
-        // returning users see their current model selection.
-        var existing = TextCompletionConfigs.FirstOrDefault(c => c.Type == ServerType.GitHubModels);
+        var existing = TextCompletionConfigs.FirstOrDefault();
         if (existing is not null)
         {
-            GitHubToken = existing.Apikey;
             if (!string.IsNullOrWhiteSpace(existing.Model))
             {
                 GitHubModel = existing.Model!;
             }
 
-            GitHubStatus = existing.IsDefault
-                ? "A GitHub Copilot connection is already saved (default)."
-                : "A GitHub Copilot connection is already saved.";
+            if (!string.IsNullOrWhiteSpace(existing.Apikey))
+            {
+                IsSignedIn = true;
+                SignedInIdentity = "Signed in with GitHub.";
+                GitHubStatus = existing.IsDefault
+                    ? "A GitHub Copilot connection is already saved (default)."
+                    : "A GitHub Copilot connection is already saved.";
+            }
         }
     }
     #endregion
 
     #region Properties
-    public ObservableCollection<UITextCompletionConfig> TextCompletionConfigs { get; private set; }
-
     /// <summary>
-    /// Suggested GitHub Models catalog ids. The user can pick one or type
-    /// a custom id in the editable ComboBox.
+    /// Persisted GitHub Models connections. Always 0 or 1 entry, but kept
+    /// as a collection so the JSON storage format stays unchanged.
     /// </summary>
+    public ObservableCollection<UITextCompletionConfig> TextCompletionConfigs { get; }
+
     public IReadOnlyList<string> GitHubModelPresets { get; } = new[]
     {
         "openai/gpt-4o-mini",
@@ -92,118 +98,38 @@ public partial class SettingsWindowViewModel :
     #endregion
 
     #region Inline validation
-    // Clear any stale "signed in" / error status as soon as the user edits
-    // the token or model fields, so the displayed state always reflects
-    // either the current (unverified) input or the last sign-in attempt.
-    partial void OnGitHubTokenChanged(string? value)
-    {
-        if (!IsSigningIn)
-        {
-            GitHubStatus = null;
-            GitHubStatusIsError = false;
-        }
-    }
-
     partial void OnGitHubModelChanged(string value)
     {
         if (!IsSigningIn)
         {
-            GitHubStatus = null;
             GitHubStatusIsError = false;
         }
     }
     #endregion
 
-    #region Commands - General
+    #region Commands - dialog
     [RelayCommand]
     private void Ok(Window window)
     {
+        // Persist model edits even if the user didn't sign in this session.
+        if (TextCompletionConfigs.Count > 0)
+        {
+            var entry = TextCompletionConfigs[0];
+            if (!string.IsNullOrWhiteSpace(GitHubModel))
+            {
+                entry.Model = GitHubModel;
+            }
+            Save();
+        }
+
         window.DialogResult = true;
-    }
-
-    [RelayCommand]
-    private void Add()
-    {
-        bool nothing = TextCompletionConfigs.Count == 0;
-        TextCompletionConfigs.Add(new UITextCompletionConfig()
-        {
-            Name = "GitHub Models",
-            Model = "openai/gpt-4o-mini",
-            Type = ServerType.GitHubModels,
-            Endpoint = TextCompletionConfig.GitHubModelsDefaultEndpoint,
-            IsDefault = nothing,
-        });
-    }
-
-    [RelayCommand]
-    private void Delete()
-    {
-        if (_selectedTextCompletionConfig == null)
-        {
-            return;
-        }
-
-        TextCompletionConfigs.Remove(_selectedTextCompletionConfig);
-    }
-
-    [RelayCommand]
-    private void SetAsDefault()
-    {
-        if (_selectedTextCompletionConfig == null)
-        {
-            return;
-        }
-
-        foreach (var config in TextCompletionConfigs)
-        {
-            config.IsDefault = false;
-        }
-
-        SelectedTextCompletionConfig!.IsDefault = true;
     }
     #endregion
 
-    #region Commands - GitHub one-click sign-in
-    /// <summary>
-    /// Opens the GitHub personal access token creation page in the default
-    /// browser with the required scope and description pre-filled.
-    /// </summary>
-    [RelayCommand]
-    private void OpenGitHubTokenPage()
-    {
-        // Classic PAT with read:org is the simplest scope that unlocks
-        // GitHub Models for individual users. Fine-grained tokens with
-        // "Models: read" also work; users can paste either kind.
-        const string url =
-            "https://github.com/settings/tokens/new" +
-            "?scopes=read:org" +
-            "&description=SolidWorks%20Copilot%20-%20GitHub%20Models";
-
-        try
-        {
-            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Could not open browser: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// One-click sign-in: validates the pasted GitHub token by calling
-    /// <c>GET https://api.github.com/user</c>, then creates or updates the
-    /// <see cref="ServerType.GitHubModels"/> entry and marks it as default.
-    /// </summary>
+    #region Commands - GitHub OAuth device flow
     [RelayCommand]
     private async Task SignInWithGitHubAsync()
     {
-        if (string.IsNullOrWhiteSpace(GitHubToken))
-        {
-            GitHubStatusIsError = true;
-            GitHubStatus = "Paste a GitHub token first.";
-            return;
-        }
-
         if (string.IsNullOrWhiteSpace(GitHubModel))
         {
             GitHubStatusIsError = true;
@@ -211,46 +137,51 @@ public partial class SettingsWindowViewModel :
             return;
         }
 
+        if (!GitHubOAuth.IsConfigured)
+        {
+            GitHubStatusIsError = true;
+            GitHubStatus =
+                "GitHub OAuth is not configured. Register an OAuth App at " +
+                "github.com/settings/applications/new (enable Device Flow), " +
+                "then set the SOLIDWORKS_COPILOT_GITHUB_CLIENT_ID environment " +
+                "variable to its client_id.";
+            return;
+        }
+
+        _signInCts?.Cancel();
+        _signInCts = new CancellationTokenSource();
+        var ct = _signInCts.Token;
+
         IsSigningIn = true;
         GitHubStatusIsError = false;
-        GitHubStatus = "Verifying token with GitHub…";
+        GitHubStatus = "Contacting GitHub…";
 
         try
         {
-            var login = await VerifyGitHubTokenAsync(GitHubToken!).ConfigureAwait(true);
+            var oauth = new GitHubOAuth();
+            var deviceCode = await oauth.RequestDeviceCodeAsync(ct).ConfigureAwait(true);
 
-            // Upsert: replace any existing GitHub Models entry by name.
-            var existing = TextCompletionConfigs
-                .FirstOrDefault(c => c.Type == ServerType.GitHubModels
-                                     && string.Equals(c.Name, GitHubConfigName, StringComparison.OrdinalIgnoreCase));
-            if (existing is not null)
-            {
-                TextCompletionConfigs.Remove(existing);
-            }
+            DeviceUserCode = deviceCode.UserCode;
+            DeviceVerificationUri = deviceCode.VerificationUri.ToString();
+            IsAwaitingDeviceCode = true;
+            GitHubStatus =
+                $"Enter the code at {deviceCode.VerificationUri} and approve sign-in.";
 
-            var entry = new UITextCompletionConfig
-            {
-                Name = GitHubConfigName,
-                Type = ServerType.GitHubModels,
-                Endpoint = TextCompletionConfig.GitHubModelsDefaultEndpoint,
-                Model = GitHubModel,
-                Apikey = GitHubToken,
-                IsDefault = true,
-            };
+            TryOpenBrowser(deviceCode.VerificationUri.ToString());
 
-            foreach (var c in TextCompletionConfigs)
-            {
-                c.IsDefault = false;
-            }
-            TextCompletionConfigs.Add(entry);
+            var token = await oauth.PollForAccessTokenAsync(deviceCode, ct).ConfigureAwait(true);
 
-            // Persist immediately so the chat pane picks it up on the next
-            // BuildKernel() without forcing the user to also click "Ok".
+            UpsertConfig(token);
             Save();
 
-            GitHubStatus = string.IsNullOrEmpty(login)
-                ? $"Signed in. Using model {GitHubModel} (set as default)."
-                : $"Signed in as @{login}. Using model {GitHubModel} (set as default).";
+            IsSignedIn = true;
+            SignedInIdentity = "Signed in with GitHub.";
+            GitHubStatus = $"Signed in. Using model {GitHubModel} (set as default).";
+        }
+        catch (OperationCanceledException)
+        {
+            GitHubStatusIsError = true;
+            GitHubStatus = "Sign-in cancelled.";
         }
         catch (Exception ex)
         {
@@ -260,56 +191,90 @@ public partial class SettingsWindowViewModel :
         finally
         {
             IsSigningIn = false;
+            IsAwaitingDeviceCode = false;
+            DeviceUserCode = null;
+            DeviceVerificationUri = null;
         }
+    }
+
+    [RelayCommand]
+    private void CancelSignIn()
+    {
+        _signInCts?.Cancel();
+    }
+
+    [RelayCommand]
+    private void CopyDeviceCode()
+    {
+        if (!string.IsNullOrEmpty(DeviceUserCode))
+        {
+            try
+            {
+                Clipboard.SetText(DeviceUserCode!);
+            }
+            catch
+            {
+                // Clipboard can transiently fail; non-fatal.
+            }
+        }
+    }
+
+    [RelayCommand]
+    private void OpenVerificationUri()
+    {
+        if (!string.IsNullOrEmpty(DeviceVerificationUri))
+        {
+            TryOpenBrowser(DeviceVerificationUri!);
+        }
+    }
+
+    [RelayCommand]
+    private void SignOut()
+    {
+        TextCompletionConfigs.Clear();
+        Save();
+        IsSignedIn = false;
+        SignedInIdentity = null;
+        GitHubStatus = "Signed out.";
+        GitHubStatusIsError = false;
     }
     #endregion
 
     #region Helpers
-    private static async Task<string?> VerifyGitHubTokenAsync(string token)
+    private void UpsertConfig(string token)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, "https://api.github.com/user");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-        request.Headers.UserAgent.ParseAdd("SolidWorks-Copilot");
-
-        using var response = await s_githubClient.SendAsync(request).ConfigureAwait(false);
-        var body = await response.Content
-            .ReadAsStringAsync()
-            .ConfigureAwait(false);
-
-        if (!response.IsSuccessStatusCode)
+        TextCompletionConfigs.Clear();
+        TextCompletionConfigs.Add(new UITextCompletionConfig
         {
-            throw new InvalidOperationException(
-                $"GitHub rejected the token ({(int)response.StatusCode} {response.ReasonPhrase}). " +
-                "Make sure it has the 'read:org' scope (classic) or 'Models: read' permission (fine-grained).");
-        }
-
-        try
-        {
-            using var doc = JsonDocument.Parse(body);
-            if (doc.RootElement.TryGetProperty("login", out var loginProp)
-                && loginProp.ValueKind == JsonValueKind.String)
-            {
-                return loginProp.GetString();
-            }
-        }
-        catch (JsonException)
-        {
-            // Non-fatal: token is valid, we just don't have the login name.
-        }
-
-        return null;
+            Name = GitHubConfigName,
+            Type = ServerType.GitHubModels,
+            Endpoint = TextCompletionConfig.GitHubModelsDefaultEndpoint,
+            Model = GitHubModel,
+            Apikey = token,
+            IsDefault = true,
+        });
     }
 
-    private UITextCompletionConfig ToUI(TextCompletionConfig t)
+    private static void TryOpenBrowser(string url)
     {
-        return new UITextCompletionConfig()
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch
+        {
+            // Non-fatal; the verification URI is shown in the UI.
+        }
+    }
+
+    private static UITextCompletionConfig ToUI(TextCompletionConfig t)
+    {
+        return new UITextCompletionConfig
         {
             Model = t.Model,
             Endpoint = t.Endpoint,
             Name = t.Name,
             Type = t.Type,
-            Org = t.Org,
             Apikey = t.Apikey,
             IsDefault = t.IsDefault,
         };
@@ -319,8 +284,8 @@ public partial class SettingsWindowViewModel :
     {
         _textCompletionProvider.Write(
             TextCompletionConfigs
-            .Select(p => p.ToTextCompletionConfig())
-            .ToList());
+                .Select(p => p.ToTextCompletionConfig())
+                .ToList());
     }
     #endregion
 }

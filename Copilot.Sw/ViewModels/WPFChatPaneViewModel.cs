@@ -32,6 +32,13 @@ public partial class WPFChatPaneViewModel : ObservableObject
     private bool _suppressModelSwitch;
     [ObservableProperty] private bool _isInitializing;
     [ObservableProperty] private string? _selectedModel;
+
+    /// <summary>
+    /// When <see langword="true"/>, the model is told to advertise tools
+    /// but not call them — it produces a markdown plan instead of mutating
+    /// the SolidWorks document. Toggled from the chat-pane header.
+    /// </summary>
+    [ObservableProperty] private bool _isDryRun;
     #endregion
 
     #region Ctor
@@ -252,6 +259,7 @@ public partial class WPFChatPaneViewModel : ObservableObject
                 Kernel,
                 _skillsProvider,
                 _question,
+                IsDryRun,
                 cancellationToken);
 
             //clear

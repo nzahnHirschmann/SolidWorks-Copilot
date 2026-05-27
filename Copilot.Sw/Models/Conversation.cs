@@ -28,6 +28,14 @@ public class Conversation : ObservableObject
         ISkillsProvider skillsProvider,
         string question,
         CancellationToken cancellationToken)
+        => await ChatAsync(kernel, skillsProvider, question, dryRun: false, cancellationToken).ConfigureAwait(true);
+
+    public async Task ChatAsync(
+        Kernel kernel,
+        ISkillsProvider skillsProvider,
+        string question,
+        bool dryRun,
+        CancellationToken cancellationToken)
     {
         // P5: preprocess slash commands and @-mentions before showing the
         // user message, so what lands in the transcript is the resolved
@@ -58,7 +66,7 @@ public class Conversation : ObservableObject
         {
             var planSkill = new SolidWorksPlanSkill(kernel);
             await foreach (var chunk in planSkill
-                .ChatStreamingAsync(resolved, _history, cancellationToken)
+                .ChatStreamingAsync(resolved, _history, dryRun, cancellationToken)
                 .ConfigureAwait(true))
             {
                 buffer.Append(chunk);
@@ -188,6 +196,9 @@ public class Conversation : ObservableObject
             ["/new-assembly"]      = "Call CreateAssembly.",
             ["/new-drawing"]       = "Call CreateDrawingFromPart on the active part / assembly using the default template.",
             ["/rebuild"]           = "Call ForceRebuild.",
+            ["/templates"]         = "Call ListTemplates and present the result verbatim so the user can pick one.",
+            ["/template"]          = "Call GetTemplate with the supplied name, then execute the procedure it returns by invoking the referenced KernelFunctions in order.",
+            ["/plan"]              = "Do NOT call any tools. Instead, respond with ONLY a single XML document of the form `<plan><skill skillname=\"FunctionName\" goal=\"what it does\"/>...</plan>` describing the exact sequence of KernelFunction calls you would make to satisfy the user's request. The UI will surface this plan for the user to review.",
             ["/help"]              = "List the available SolidWorks Copilot slash commands and what they do.",
         };
 

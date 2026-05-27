@@ -293,6 +293,10 @@ Not new SW APIs — agent-loop features.
   ([SwPlanModel.cs](../Copilot.Sw/Models/SwPlanModel.cs)); wire it back
   into the streaming loop so the model can output a structured plan
   *instead of* (or in addition to) auto-calling.
+  **Partial:** `/plan` slash command instructs the model to emit the
+  XML plan format, which `Conversation.ChatAsync` already routes to
+  `ActionAnswerMessage`. Still TODO: explicit *Apply* / *Edit* buttons
+  on the action bubble that re-issue the plan with auto tool-calling.
 - [x] **Per-step status + rollback** — every native KernelFunction the
   model invokes is captured by
   [ToolCallTraceFilter.cs](../Copilot.Sw/Skills/ToolCallTraceFilter.cs)
@@ -301,14 +305,23 @@ Not new SW APIs — agent-loop features.
   Rollback is delivered by the existing per-turn undo group in
   [Conversation.cs](../Copilot.Sw/Models/Conversation.cs) — one Ctrl-Z
   reverts everything the model did this turn.
-- [ ] **Dry-run mode** — run skills against a cloned doc
-  (`ISldWorks.OpenDoc6` with `swOpenDocOptions_Silent` + temp copy);
-  show before/after screenshots.
+- [x] **Dry-run mode** — `IsDryRun` toggle in the chat-pane header
+  flips `FunctionChoiceBehavior` from `Auto()` to `None()` and adds a
+  system-prompt suffix instructing the model to produce a numbered
+  markdown plan instead of mutating the document. See
+  [SolidWorksPlanSkill.cs](../Copilot.Sw/Skills/SolidWorksPlanSkill.cs).
+  *Future:* cloned-doc execution with before/after screenshots.
 - [ ] **Reference attachments** — drag a sketch image / PDF / DXF into
   chat; pass it to a vision model; have it produce a sketch plan.
-- [ ] **Templates / macros library** — store named procedures (*“flange
-  with M6 bolt circle, 6 holes, 80 PCD”*) that the model can invoke as
-  one tool call.
+  *Blocked on:* chat pane drag-drop infra + a configured vision model
+  on the active provider.
+- [x] **Templates / macros library** — named procedures stored in
+  `%APPDATA%\Copilot.Sw\templates.json` (auto-materialised with
+  defaults: `flange-bolt-circle`, `linear-bracket`,
+  `drawing-from-active`, `mate-stack`, `inspect-drawing`). Exposed via
+  [TemplatesSkillContext.cs](../Copilot.Sw/Skills/TemplatesSkill/TemplatesSkillContext.cs)
+  KernelFunctions `ListTemplates` / `GetTemplate(name)`, and via the
+  `/templates` and `/template <name>` slash commands.
 - [x] **@-mentions in chat** — `@active`, `@selection`, `@sheet`,
   `@components`, `@features` are expanded by
   `Conversation.ExpandAtMentions` to an inline context snapshot the

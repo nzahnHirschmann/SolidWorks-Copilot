@@ -83,6 +83,21 @@
                     ToolTip="New conversation">
                     <ui:SymbolIcon Symbol="ChatAdd24" />
                 </Button>
+                <ToggleButton
+                    Grid.Column="2"
+                    Margin="0,0,6,0"
+                    Padding="6,2"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    IsChecked="{Binding IsDryRun, Mode=TwoWay}"
+                    ToolTip="Dry-run mode: model produces a plan without invoking tools."
+                    Background="Transparent"
+                    BorderBrush="#1F000000">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:SymbolIcon Margin="0,0,4,0" Symbol="Beaker24" />
+                        <TextBlock FontSize="11" Text="Dry-run" VerticalAlignment="Center" />
+                    </StackPanel>
+                </ToggleButton>
                 <Button
                     Grid.Column="5"
                     Padding="6"

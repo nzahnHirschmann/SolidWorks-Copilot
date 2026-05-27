@@ -21,6 +21,12 @@ public sealed class SolidWorksPlanSkill
         "available as a function/tool, call the function instead of " +
         "describing it. Otherwise, answer in plain text.";
 
+    private const string DryRunSystemPromptSuffix =
+        "\n\nDRY-RUN MODE: do NOT call any functions/tools. Instead, " +
+        "respond with a short numbered markdown plan listing the exact " +
+        "function names (and key arguments) you would call, in order, " +
+        "so the user can review before enabling execution.";
+
     private readonly Kernel _kernel;
 
     public SolidWorksPlanSkill(Kernel kernel)
@@ -73,10 +79,30 @@ public sealed class SolidWorksPlanSkill
         string history,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        await foreach (var chunk in ChatStreamingAsync(input, history, dryRun: false, cancellationToken)
+            .ConfigureAwait(false))
+        {
+            yield return chunk;
+        }
+    }
+
+    /// <summary>
+    /// Streaming variant of <see cref="ChatAsync"/>. Yields text chunks as
+    /// they arrive from the model. When <paramref name="dryRun"/> is
+    /// <see langword="true"/>, <see cref="FunctionChoiceBehavior.None"/> is
+    /// used so the model advertises the tools but does not call them —
+    /// instead it explains what it *would* do.
+    /// </summary>
+    public async IAsyncEnumerable<string> ChatStreamingAsync(
+        string input,
+        string history,
+        bool dryRun,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
         var chat = _kernel.GetRequiredService<IChatCompletionService>();
 
         var messages = new ChatHistory();
-        messages.AddSystemMessage(SystemPrompt);
+        messages.AddSystemMessage(dryRun ? SystemPrompt + DryRunSystemPromptSuffix : SystemPrompt);
         if (!string.IsNullOrWhiteSpace(history))
         {
             messages.AddSystemMessage("Conversation so far:\n" + history);
@@ -85,7 +111,9 @@ public sealed class SolidWorksPlanSkill
 
         var settings = new OpenAIPromptExecutionSettings
         {
-            FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
+            FunctionChoiceBehavior = dryRun
+                ? FunctionChoiceBehavior.None()
+                : FunctionChoiceBehavior.Auto(),
             Temperature = 0.2,
         };
 

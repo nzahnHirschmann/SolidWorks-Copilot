@@ -133,42 +133,42 @@ Effort key: **S** ≈ <½ day · **M** ≈ 1–2 days · **L** ≈ ≥1 week.
 
 ### Phase 1 — Correctness (must-fix; mostly small)
 
-- [ ] **P1.1 (S)** Merge the two DI containers. Build once; assign the same `IServiceProvider` to both `AddIn.Services` and `Ioc.Default`.
-- [ ] **P1.2 (S)** Honor `IsDefault` in `KernelExtensions.LoadConfigs()` — select the flagged config (fallback to first).
-- [ ] **P1.3 (S)** Re-save `Skills/SketchSkill/CreateSketchSegment/skprompt.txt` as UTF-8 with intended English/Chinese content; verify SK reads the right bytes.
-- [ ] **P1.4 (S)** Import the native skill classes (`SketchSegmentCreationSkill`, `DocumentCreatationSkill`) into the kernel before `SequentialPlanner.CreatePlanAsync` runs — otherwise plans are unreachable.
-- [ ] **P1.5 (S)** Fix `SkillsProvider.GetSkills()` indexing (`model.Index = index++`).
-- [ ] **P1.6 (S)** Drop the `[Obsolete]` `_taskPlanFunc` construction from `SolidWorksPlanSkill` ctor (saves a token call per message).
-- [ ] **P1.7 (S)** Remove the hardcoded `text-embedding-ada-002` registration (or guard it behind a config flag) so accounts without that model don't 4xx.
+- [x] **P1.1 (S)** Merge the two DI containers. Build once; assign the same `IServiceProvider` to both `AddIn.Services` and `Ioc.Default`.
+- [x] **P1.2 (S)** Honor `IsDefault` in `KernelExtensions.LoadConfigs()` — select the flagged config (fallback to first).
+- [x] **P1.3 (S)** Re-save `Skills/SketchSkill/CreateSketchSegment/skprompt.txt` as UTF-8 with intended English/Chinese content; verify SK reads the right bytes.
+- [x] **P1.4 (S)** Import the native skill classes (`SketchSegmentCreationSkill`, `DocumentCreatationSkill`) into the kernel before `SequentialPlanner.CreatePlanAsync` runs — otherwise plans are unreachable.
+- [x] **P1.5 (S)** Fix `SkillsProvider.GetSkills()` indexing (`model.Index = index++`).
+- [x] **P1.6 (S)** Drop the `[Obsolete]` `_taskPlanFunc` construction from `SolidWorksPlanSkill` ctor (saves a token call per message).
+- [x] **P1.7 (S)** Remove the hardcoded `text-embedding-ada-002` registration (or guard it behind a config flag) so accounts without that model don't 4xx.
 
 ### Phase 2 — Cleanup (high-leverage hygiene)
 
-- [ ] **P2.1 (S)** Delete `ChatPane.xaml(.cs)` and drop the `Microsoft.Web.WebView2` package.
-- [ ] **P2.2 (S)** `QuickChatPaneViewModel.SendAsync` → `base.SendAsync()` (or delete override).
-- [ ] **P2.3 (S)** Make `_skillBuilder` in `SwSkillSelection` instance-scoped (or invalidate on provider change).
-- [ ] **P2.4 (S)** Rename API typos in one pass: `ITextCompletionProvider.Wirte` → `Write`; `DocumentCreatationSkill` → `DocumentCreationSkill`; `EnumToItemsConveter.cs` → `EnumToItemsConverter.cs`.
-- [ ] **P2.5 (S)** Remove empty `SketchLevelPlan()` `[SKFunction]`.
-- [ ] **P2.6 (S)** Drop the `#if NET7_0_OR_GREATER` branch in `GitHubModelsTextCompletion`; thread cancellation through on NET48 via `HttpClient.SendAsync(req, ct)`.
-- [ ] **P2.7 (S)** `launchSettings.json` — make the SW path overridable via env var or document the per-machine edit.
+- [x] **P2.1 (S)** Delete `ChatPane.xaml(.cs)` and drop the `Microsoft.Web.WebView2` package.
+- [x] **P2.2 (S)** `QuickChatPaneViewModel.SendAsync` → `base.SendAsync()` (or delete override).
+- [x] **P2.3 (S)** Make `_skillBuilder` in `SwSkillSelection` instance-scoped (or invalidate on provider change).
+- [x] **P2.4 (S)** Rename API typos in one pass: `ITextCompletionProvider.Wirte` → `Write`; `DocumentCreatationSkill` → `DocumentCreationSkill`; `EnumToItemsConveter.cs` → `EnumToItemsConverter.cs`.
+- [x] **P2.5 (S)** Remove empty `SketchLevelPlan()` `[SKFunction]`.
+- [x] **P2.6 (S)** Drop the `#if NET7_0_OR_GREATER` branch in `GitHubModelsTextCompletion`; thread cancellation through on NET48 via `HttpClient.SendAsync(req, ct)`.
+- [x] **P2.7 (S)** `launchSettings.json` — make the SW path overridable via env var or document the per-machine edit.
 
 ### Phase 3 — UX / responsiveness
 
-- [ ] **P3.1 (S)** Move `BuildKernel()` off the UI thread: call `await viewModel.InitAsync()` from `Loaded`, not from the ctor. Show a spinner/disable input until ready.
-- [ ] **P3.2 (M)** Surface kernel-init errors in the chat pane (currently swallowed when the first kernel build fails).
-- [ ] **P3.3 (M)** Settings: validate PAT against `api.github.com/user` _after_ each edit; show inline error states.
+- [x] **P3.1 (S)** Move `BuildKernel()` off the UI thread: call `await viewModel.InitAsync()` from `Loaded`, not from the ctor. Show a spinner/disable input until ready.
+- [x] **P3.2 (M)** Surface kernel-init errors in the chat pane (currently swallowed when the first kernel build fails).
+- [x] **P3.3 (M)** Settings: validate PAT against `api.github.com/user` _after_ each edit; show inline error states.
 
 ### Phase 4 — Security
 
-- [ ] **P4.1 (M)** Encrypt `Apikey`/PAT at rest using DPAPI (`ProtectedData.Protect`, `DataProtectionScope.CurrentUser`). Read-time decrypt; remain backward-compatible with plaintext for one release.
-- [ ] **P4.2 (S)** Set `.gitignore` / docs to make absolutely sure no settings file ever lands in the repo.
+- [x] **P4.1 (M)** Encrypt `Apikey`/PAT at rest using DPAPI (`ProtectedData.Protect`, `DataProtectionScope.CurrentUser`). Read-time decrypt; remain backward-compatible with plaintext for one release.
+- [x] **P4.2 (S)** Set `.gitignore` / docs to make absolutely sure no settings file ever lands in the repo.
 
 ### Phase 5 — Tests
 
-- [ ] **P5.1 (M)** Add a unit test for `GitHubModelsTextCompletion` using a mock `HttpMessageHandler` (assert headers, body shape, choice/text parsing fallback).
-- [ ] **P5.2 (M)** Add tests for `KernelExtensions.LoadConfigs()` covering: default selection, OpenAI vs Azure vs GitHubModels branches, empty config list.
-- [ ] **P5.3 (S)** Redirect `TextCompletionProviderTests` to a temp folder so it doesn't clobber `%APPDATA%`.
-- [ ] **P5.4 (S)** Replace brittle `"Nothing"` assertion in `SolidWorksSkillTests` with a structural one.
-- [ ] **P5.5 (M)** Add `SwPlanModel.TryParse` and `SkillsParse.Parse` unit tests (parser is the load-bearing piece between LLM output and COM calls).
+- [x] **P5.1 (M)** Add a unit test for `GitHubModelsTextCompletion` (adapter deleted in P6.1; test moot) using a mock `HttpMessageHandler` (assert headers, body shape, choice/text parsing fallback).
+- [x] **P5.2 (M)** Add tests for `KernelExtensions.LoadConfigs()` covering: default selection, OpenAI vs Azure vs GitHubModels branches, empty config list.
+- [x] **P5.3 (S)** Redirect `TextCompletionProviderTests` to a temp folder so it doesn't clobber `%APPDATA%`.
+- [x] **P5.4 (S)** Replace brittle `"Nothing"` assertion in `SolidWorksSkillTests` with a structural one.
+- [x] **P5.5 (M)** Add `SwPlanModel.TryParse` and `SkillsParse.Parse` unit tests (parser is the load-bearing piece between LLM output and COM calls).
 
 ### Phase 6 — Long horizon
 

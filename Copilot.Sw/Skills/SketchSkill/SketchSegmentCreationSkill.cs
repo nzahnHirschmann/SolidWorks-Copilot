@@ -4,7 +4,7 @@ using System.ComponentModel;
 
 namespace Copilot.Sw.Skills.SketchSkill;
 
-public class SketchSegmentCreationSkill
+public class SketchSegmentCreationSkill : SldWorksSkillContext
 {
     [KernelFunction("CreateCircle")]
     [Description("Create a circle in the active SolidWorks sketch. " +

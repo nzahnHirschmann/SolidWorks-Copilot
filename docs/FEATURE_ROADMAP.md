@@ -32,30 +32,30 @@ Copilot to model anything”* is structurally impossible.
 Without these, every higher-level skill reinvents the same plumbing or
 breaks in the same way.
 
-- [ ] **P0.1 — Document lifecycle**: `OpenDocument(path)`, `SaveActive`,
+- [x] **P0.1 — Document lifecycle**: `OpenDocument(path)`, `SaveActive`,
   `SaveAs(path)`, `CloseActive`, `ListOpenDocuments`,
   `ActivateDocument(name)`.
-- [ ] **P0.2 — Active-context query**: wrap
+- [x] **P0.2 — Active-context query**: wrap
   `ISldWorksExtensions.GetSwCurrentContext()` as
   `[KernelFunction] GetActiveContext()` returning
   `{ DocType, DocName, ActiveSketch?, ActiveFeature?, SelectionCount }`.
   Today the model is blind to whether it's in a part, sketch, or drawing.
-- [ ] **P0.3 — Sketch lifecycle**:
+- [x] **P0.3 — Sketch lifecycle**:
   `InsertSketchOnPlane("Front"|"Top"|"Right"|<face>)`, `ExitSketch`,
   `EditSketch(name)`. `CreateCircle` needs this — nothing currently starts
   a sketch.
-- [ ] **P0.4 — Selection skills**: `SelectByName(name, type)`,
+- [x] **P0.4 — Selection skills**: `SelectByName(name, type)`,
   `SelectFaceAt(x,y,z)`, `ClearSelection`. Half the SW API is *“set
   selection, then call FeatureManager”*.
-- [ ] **P0.5 — Units & coordinates**: shared `Sw.Units` helper +
+- [x] **P0.5 — Units & coordinates**: shared `Sw.Units` helper +
   `GetDocumentUnits()`. Move the hard-coded `/1000` mm→m hack out of
   `CreateCircle` so future skills can adapt to inch/mm docs.
-- [ ] **P0.6 — Auto-register native skills**: `KernelExtensions.BuildKernel`
+- [x] **P0.6 — Auto-register native skills**: `KernelExtensions.BuildKernel`
   should discover every `SldWorksSkillContext` subclass (or
   `[CopilotSkill]`-marked type) and `AddFromType<>` it. Right now each
   skill has to be hand-wired in — which is how `CreateDrawing` ended up
   empty and unnoticed.
-- [ ] **P0.7 — Undo grouping**: wrap each multi-step chat turn in
+- [x] **P0.7 — Undo grouping**: wrap each multi-step chat turn in
   `IModelDocExtension.StartRecordingUndoObject` /
   `FinishRecordingUndoObject` so a botched plan can be reverted with one
   Ctrl-Z. Currently a 12-feature plan needs 50 undo clicks.

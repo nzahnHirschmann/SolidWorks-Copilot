@@ -1,9 +1,11 @@
 ﻿using Copilot.Sw.Config;
+using Copilot.Sw.Skills;
 using Microsoft.SemanticKernel;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 
 namespace Copilot.Sw.Extensions;
 
@@ -62,5 +64,68 @@ public static class KernelExtensions
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Discovers every concrete <see cref="SldWorksSkillContext"/> subclass
+    /// in the Copilot.Sw assembly that exposes at least one
+    /// <c>[KernelFunction]</c> method, instantiates it, and adds it as a
+    /// plugin on the kernel. Idempotent — plugins whose name is already
+    /// registered are skipped.
+    /// </summary>
+    /// <returns>The names of the plugins that were added (or were already
+    /// present) on this call.</returns>
+    public static IReadOnlyList<string> AddAllNativeSkills(this Kernel kernel)
+    {
+        if (kernel is null)
+        {
+            throw new ArgumentNullException(nameof(kernel));
+        }
+
+        var assembly = typeof(SldWorksSkillContext).Assembly;
+        var skillTypes = assembly
+            .GetTypes()
+            .Where(t => t.IsClass
+                && !t.IsAbstract
+                && typeof(SldWorksSkillContext).IsAssignableFrom(t)
+                && t != typeof(SldWorksSkillContext))
+            .Where(HasKernelFunction)
+            .OrderBy(t => t.Name, StringComparer.Ordinal)
+            .ToArray();
+
+        var loaded = new List<string>(skillTypes.Length);
+        foreach (var type in skillTypes)
+        {
+            var pluginName = type.Name;
+            if (kernel.Plugins.Contains(pluginName))
+            {
+                loaded.Add(pluginName);
+                continue;
+            }
+
+            try
+            {
+                var instance = Activator.CreateInstance(type);
+                if (instance is null)
+                {
+                    continue;
+                }
+                kernel.Plugins.AddFromObject(instance, pluginName);
+                loaded.Add(pluginName);
+            }
+            catch (Exception)
+            {
+                // A misbehaving skill must not take the chat pane down.
+                // (Telemetry hook will land in P6.)
+            }
+        }
+        return loaded;
+    }
+
+    private static bool HasKernelFunction(Type type)
+    {
+        return type
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Any(m => m.GetCustomAttribute<KernelFunctionAttribute>() is not null);
     }
 }

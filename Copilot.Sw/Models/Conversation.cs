@@ -1,9 +1,9 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.DependencyInjection;
 using Copilot.Sw.Extensions;
 using Copilot.Sw.Skills;
-using Copilot.Sw.Skills.SketchSkill;
-using Copilot.Sw.Skills.SolidWorksSkill;
 using Microsoft.SemanticKernel;
+using SolidWorks.Interop.sldworks;
 using System.Collections.ObjectModel;
 using System.Text;
 using System.Threading;
@@ -26,7 +26,7 @@ public class Conversation : ObservableObject
     {
         Messages.Add(Message.CreateAsk(question));
 
-        EnsureNativePluginsLoaded(kernel);
+        kernel.AddAllNativeSkills();
 
         // Live-streamed answer message: stays in Messages and its Content
         // is appended to as chunks arrive (Message.Content is observable
@@ -34,6 +34,12 @@ public class Conversation : ObservableObject
         var streamed = new AnswerMessage { Content = string.Empty };
         Messages.Add(streamed);
         var buffer = new StringBuilder();
+
+        // Wrap the whole turn in a SolidWorks undo group so the user can
+        // revert every feature the model created in one Ctrl-Z.
+        var undoDoc = GetActiveDoc();
+        var undoLabel = $"Copilot: {Truncate(question, 60)}";
+        var undoStarted = TryStartUndo(undoDoc, undoLabel);
 
         try
         {
@@ -72,6 +78,13 @@ public class Conversation : ObservableObject
             Messages.Remove(streamed);
             throw;
         }
+        finally
+        {
+            if (undoStarted)
+            {
+                TryFinishUndo(undoDoc, undoLabel);
+            }
+        }
     }
 
     public Task ChatWithContextAsync(
@@ -81,21 +94,54 @@ public class Conversation : ObservableObject
         CancellationToken cancellationToken)
         => ChatAsync(kernel, skillsProvider, question, cancellationToken);
 
-    private static void EnsureNativePluginsLoaded(Kernel kernel)
+    private static IModelDoc2? GetActiveDoc()
     {
-        // Idempotent: AddFromObject would throw if the plugin name is taken,
-        // so only register what isn't there yet.
-        if (!kernel.Plugins.Contains(nameof(DocumentCreationSkill)))
+        try
         {
-            kernel.Plugins.AddFromObject(new DocumentCreationSkill(), nameof(DocumentCreationSkill));
+            return Ioc.Default.GetService<IAddin>()?.Sw?.IActiveDoc2;
         }
-        if (!kernel.Plugins.Contains(nameof(SketchSegmentCreationSkill)))
+        catch
         {
-            kernel.Plugins.AddFromObject(
-                new SketchSegmentCreationSkill(),
-                nameof(SketchSegmentCreationSkill));
+            return null;
         }
     }
+
+    private static bool TryStartUndo(IModelDoc2? doc, string label)
+    {
+        if (doc is null)
+        {
+            return false;
+        }
+        try
+        {
+            doc.Extension.StartRecordingUndoObject();
+            _ = label; // name is applied at finish-time
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void TryFinishUndo(IModelDoc2? doc, string label)
+    {
+        if (doc is null)
+        {
+            return;
+        }
+        try
+        {
+            doc.Extension.FinishRecordingUndoObject(label);
+        }
+        catch
+        {
+            // Best-effort; never let undo-grouping failures surface.
+        }
+    }
+
+    private static string Truncate(string s, int max)
+        => string.IsNullOrEmpty(s) || s.Length <= max ? s : s.Substring(0, max) + "…";
     #endregion
 
     #region Add

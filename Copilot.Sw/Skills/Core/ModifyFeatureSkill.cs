@@ -140,6 +140,41 @@ public sealed class ModifyFeatureSkill : SldWorksSkillContext
                 "feature(s) to mirror are selected.");
     }
 
+    [KernelFunction(nameof(Thread))]
+    [Description("Add a cosmetic thread on the currently selected " +
+        "cylindrical face or circular edge. 'diameter' is the major " +
+        "diameter in the document's length unit (typically mm). " +
+        "'endCondition' is BLIND (default) / UP_TO_NEXT / THROUGH. " +
+        "'depth' applies for BLIND. 'callout' overrides the displayed text " +
+        "(empty = SolidWorks default).")]
+    public string Thread(
+        double diameter,
+        double depth = 0,
+        string endCondition = "BLIND",
+        string callout = "",
+        string? unit = null)
+    {
+        var (doc, fm) = RequireFeatureManager();
+        var d = SwUnits.ToMeters(diameter, unit, doc);
+        var depthM = SwUnits.ToMeters(depth, unit, doc);
+        var ec = endCondition?.Trim().ToUpperInvariant() switch
+        {
+            "UP_TO_NEXT" or "UPTONEXT" => swCosmeticThreadType_e.swApplyCosmeticThread_UpToNext,
+            "THROUGH" or "THROUGH_FEATURE" or "THROUGHFEATURE" => swCosmeticThreadType_e.swApplyCosmeticThread_ThroughFeature,
+            _ => swCosmeticThreadType_e.swApplyCosmeticThread_Blind,
+        };
+        var feat = fm.InsertCosmeticThread3(
+            (int)swCosmeticThreadDiameterType_e.swCosmeticThread_MajorDiameter,
+            string.Empty, string.Empty,
+            d,
+            (int)ec,
+            depthM,
+            callout ?? string.Empty) as IFeature
+            ?? throw new InvalidOperationException(
+                "Thread failed. Pre-select a cylindrical face or circular edge.");
+        return feat.Name;
+    }
+
     private (IModelDoc2 doc, IFeatureManager fm) RequireFeatureManager()
     {
         var doc = ActiveSwDoc

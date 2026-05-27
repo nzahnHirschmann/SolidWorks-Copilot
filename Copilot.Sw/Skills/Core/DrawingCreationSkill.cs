@@ -301,6 +301,147 @@ public sealed class DrawingCreationSkill : SldWorksSkillContext
         return $"BoM table inserted ({type}).";
     }
 
+    [KernelFunction(nameof(InsertHoleTable))]
+    [Description("Insert a Hole Table on the active drawing view. Activate " +
+        "(click) the target view first. 'tagStyle' is ALPHANUMERIC (default), " +
+        "NUMERIC, or MANUAL. 'tagOrder' is XY (default), RADIAL, or " +
+        "REDUCE_TOOL_PATH. Position in document length units; (0,0) lets " +
+        "SolidWorks anchor automatically. Template is optional.")]
+    public string InsertHoleTable(
+        double x = 0,
+        double y = 0,
+        string tagStyle = "ALPHANUMERIC",
+        string tagOrder = "XY",
+        bool combineSameSizes = true,
+        string templatePath = "")
+    {
+        var dwg = RequireDrawing();
+        var doc = (IModelDoc2)dwg;
+        var view = (dwg.GetFirstView() as IView) ?? throw new InvalidOperationException(
+            "No drawing view found. Insert a view first.");
+        // Walk to the active view if the user clicked one.
+        var active = dwg.ActiveDrawingView as IView ?? FindFirstModelView(view);
+        if (active is null)
+        {
+            throw new InvalidOperationException(
+                "Activate a drawing view (click on it) before inserting a hole table.");
+        }
+
+        var anchorType = (int)swBOMConfigurationAnchorType_e.swBOMConfigurationAnchor_TopLeft;
+        var useAnchor = x == 0 && y == 0;
+        var xm = SwUnits.ToMeters(x, null, doc);
+        var ym = SwUnits.ToMeters(y, null, doc);
+        var style = tagStyle?.Trim().ToUpperInvariant() switch
+        {
+            "NUMERIC" => swHoleTableTagStyle_e.swHoleTable_NumericTags,
+            "MANUAL" => swHoleTableTagStyle_e.swHoleTable_ManualTags,
+            _ => swHoleTableTagStyle_e.swHoleTable_AlphaNumericTags,
+        };
+        var order = tagOrder?.Trim().ToUpperInvariant() switch
+        {
+            "RADIAL" => swHoleTableTagOrder_e.swHoleTableTagOrder_Radial,
+            "REDUCE_TOOL_PATH" or "REDUCETOOLPATH" => swHoleTableTagOrder_e.swHoleTableTagOrder_ReduceToolPath,
+            _ => swHoleTableTagOrder_e.swHoleTableTagOrder_XY,
+        };
+
+        var table = active.InsertHoleTable3(
+            useAnchor, xm, ym, anchorType,
+            ((int)style).ToString(),
+            templatePath ?? string.Empty,
+            (int)order,
+            (int)swHoleTableTagPrefixApply_e.swHoleTableTagPrefixApply_AllHolesOfSameSize,
+            combineSameSizes);
+        return table is null
+            ? throw new InvalidOperationException(
+                "InsertHoleTable3 returned null. Make sure the view contains holes and a face is selected.")
+            : $"Hole table inserted on view '{active.Name}'.";
+    }
+
+    [KernelFunction(nameof(InsertRevisionTable))]
+    [Description("Insert a Revision Table on the current drawing sheet. " +
+        "'tagStyle' is ALPHABETIC (default) or NUMERIC. Position in document " +
+        "length units; (0,0) anchors automatically. Template is optional.")]
+    public string InsertRevisionTable(
+        double x = 0,
+        double y = 0,
+        string tagStyle = "ALPHABETIC",
+        bool enableSymbolEnumeration = false,
+        string templatePath = "")
+    {
+        var dwg = RequireDrawing();
+        var doc = (IModelDoc2)dwg;
+        var sheet = (dwg.GetCurrentSheet() as ISheet) ?? throw new InvalidOperationException(
+            "No active drawing sheet.");
+
+        var useAnchor = x == 0 && y == 0;
+        var xm = SwUnits.ToMeters(x, null, doc);
+        var ym = SwUnits.ToMeters(y, null, doc);
+        var anchorType = (int)swBOMConfigurationAnchorType_e.swBOMConfigurationAnchor_TopRight;
+        var style = tagStyle?.Trim().ToUpperInvariant() switch
+        {
+            "NUMERIC" => swRevisionTableTagStyle_e.swRevisionTable_NumericTags,
+            _ => swRevisionTableTagStyle_e.swRevisionTable_AlphabeticTags,
+        };
+
+        var table = sheet.InsertRevisionTable2(
+            useAnchor, xm, ym, anchorType,
+            templatePath ?? string.Empty,
+            (int)style,
+            enableSymbolEnumeration);
+        return table is null
+            ? throw new InvalidOperationException("InsertRevisionTable2 returned null.")
+            : $"Revision table inserted on sheet '{sheet.GetName()}'.";
+    }
+
+    [KernelFunction(nameof(InsertWeldmentCutList))]
+    [Description("Insert a Weldment Cut List table on the active drawing " +
+        "view. Activate the view (must reference a weldment part) before " +
+        "calling. Position in document length units; (0,0) anchors " +
+        "automatically. Configuration / template are optional.")]
+    public string InsertWeldmentCutList(
+        double x = 0,
+        double y = 0,
+        string configurationName = "",
+        string templatePath = "")
+    {
+        var dwg = RequireDrawing();
+        var doc = (IModelDoc2)dwg;
+        var active = dwg.ActiveDrawingView as IView ?? FindFirstModelView(dwg.GetFirstView() as IView);
+        if (active is null)
+        {
+            throw new InvalidOperationException(
+                "Activate a drawing view (click on it) before inserting a weldment cut list.");
+        }
+
+        var useAnchor = x == 0 && y == 0;
+        var xm = SwUnits.ToMeters(x, null, doc);
+        var ym = SwUnits.ToMeters(y, null, doc);
+        var anchorType = (int)swBOMConfigurationAnchorType_e.swBOMConfigurationAnchor_TopLeft;
+
+        var table = active.InsertWeldmentTable(
+            useAnchor, xm, ym, anchorType,
+            configurationName ?? string.Empty,
+            templatePath ?? string.Empty);
+        return table is null
+            ? throw new InvalidOperationException(
+                "InsertWeldmentTable returned null. Make sure the view references a weldment part.")
+            : $"Weldment cut list inserted on view '{active.Name}'.";
+    }
+
+    private static IView? FindFirstModelView(IView? first)
+    {
+        var v = first;
+        int safety = 0;
+        while (v is not null && safety++ < 1000)
+        {
+            // The first view is the sheet itself; first real model view is its child.
+            var child = v.GetNextView() as IView;
+            if (child is not null && !string.IsNullOrEmpty(child.GetReferencedModelName())) { return child; }
+            v = child;
+        }
+        return null;
+    }
+
     private IDrawingDoc RequireDrawing()
     {
         var doc = ActiveSwDoc

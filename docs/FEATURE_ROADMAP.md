@@ -105,7 +105,9 @@ breaks in the same way.
   wrapper for the common tapped-hole case (ISO/DIN/ANSI/JIS/BSI/GB)
 - [ ] Full `HoleWizard(spec, points[])` for counter-bore / counter-sink /
   pipe-tap variants
-- [ ] `Thread(face, spec)`
+- [x] `Thread(diameter, depth?, endCondition?, callout?)` — cosmetic
+  thread via `InsertCosmeticThread3` on pre-selected cylindrical face
+  or circular edge (BLIND / UP_TO_NEXT / THROUGH)
 - [x] `LinearPattern`, `CircularPattern`, `MirrorFeature`
 
 ### 2.5 Body / surfacing
@@ -115,7 +117,10 @@ breaks in the same way.
 - [x] `MoveCopyBody(...)`, `DeleteBody(...)`
 - [ ] `SplitBody(...)`
 - [x] `ThickenSurface(thickness, direction)`
-- [ ] `KnitSurfaces(...)`, `TrimSurface(...)`
+- [x] `KnitSurfaces(mergeEntities?, knitToBody?, gapToleranceMm?)` — sew
+  the pre-selected surfaces (`InsertSewRefSurface`); promote to solid if
+  closed and `knitToBody` is true
+- [ ] `TrimSurface(...)`
 
 ### 2.6 Configurations & equations
 
@@ -143,7 +148,10 @@ breaks in the same way.
 - [x] **Mates** — `AddMate(type, distance?, angle?, alignment?, flip?)`:
   Coincident, Concentric, Parallel, Perpendicular, Tangent, Distance,
   Angle, Lock, Symmetric, Width (pre-select two refs)
-- [ ] Remaining mate types: Cam, Gear, Slot, Path, Hinge, Screw
+- [x] Remaining mate types: **Cam, Gear, Slot, Path, Hinge, Screw**
+  (plus UniversalJoint, RackPinion, LinearCoupler, ProfileCenter) —
+  unified `AddMate(type, ..., gearRatioNumerator?, gearRatioDenominator?)`;
+  pre-select the required references per mate type
 - [x] `ReplaceComponent(newPath, replaceAllInstances, reAttachMates,
   configurationName)` — pre-select component instance
 - [x] `SuppressSelectedComponent`, `ResolveSelectedComponent`
@@ -179,7 +187,11 @@ breaks in the same way.
 - [x] `AddSheet(name, sheetSize, scale)`, `ActivateSheet(name)`
 - [x] `InsertBomTable(bomType, templatePath, configurationName)` —
   PARTS_ONLY / TOP_LEVEL / INDENTED
-- [ ] `InsertHoleTable`, `InsertRevisionTable`, `InsertWeldmentCutList`
+- [x] `InsertHoleTable(x?, y?, tagStyle?, tagOrder?, combineSameSizes?, templatePath?)`,
+  `InsertRevisionTable(x?, y?, tagStyle?, enableSymbolEnumeration?, templatePath?)`,
+  `InsertWeldmentCutList(x?, y?, configurationName?, templatePath?)` —
+  view/sheet-scoped (`IView.InsertHoleTable3` / `ISheet.InsertRevisionTable2` /
+  `IView.InsertWeldmentTable`); (0,0) anchors automatically
 - [x] `InsertCenterMarks(view)` (selection-driven, see 4.2),
   `InsertCenterlines()` (selection-driven, two parallel edges)
 - [x] `AutoBalloonViews(layout)` — SQUARE / CIRCULAR / TOP / BOTTOM /

@@ -73,4 +73,25 @@ public sealed class BodyOperationSkill : SldWorksSkillContext
                 "ThickenSurface failed. Pre-select the surface body.");
         return feat.Name;
     }
+
+    [KernelFunction(nameof(KnitSurfaces))]
+    [Description("Knit (sew) the currently selected surfaces into a single " +
+        "surface body. Pre-select two or more surfaces sharing edges. " +
+        "If 'knitToBody' is true and the knit is closed, the result is " +
+        "promoted to a solid body. 'gapToleranceMm' sets the allowable gap.")]
+    public string KnitSurfaces(
+        bool mergeEntities = true,
+        bool knitToBody = false,
+        double gapToleranceMm = 0.01,
+        bool tryToForm = true)
+    {
+        var doc = ActiveSwDoc
+            ?? throw new InvalidOperationException("No active SolidWorks document.");
+        var tol = SwUnits.ToMeters(gapToleranceMm, "mm", doc);
+        var feat = doc.FeatureManager.InsertSewRefSurface(
+            tryToForm, mergeEntities, knitToBody, tol, 0) as IFeature
+            ?? throw new InvalidOperationException(
+                "KnitSurfaces failed. Pre-select two or more surfaces sharing edges.");
+        return feat.Name;
+    }
 }

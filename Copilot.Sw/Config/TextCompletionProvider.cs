@@ -33,7 +33,7 @@ public class TextCompletionProvider:ITextCompletionProvider
         return configs;
     }
 
-    public void Wirte(IList<TextCompletionConfig> textCompletionConfigs)
+    public void Write(IList<TextCompletionConfig> textCompletionConfigs)
     {
         Check();
 

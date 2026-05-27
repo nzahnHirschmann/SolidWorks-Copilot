@@ -28,12 +28,9 @@ public static class KernelExtensions
                     config.Apikey,            // OpenAI API key
                     config.Org
                     );
-                kernelConfig.AddOpenAITextEmbeddingGenerationService(
-                    config.Name,
-                    "text-embedding-ada-002",
-                    config.Apikey,
-                    config.Org
-                    );
+                // Embeddings are not used by the chat flow today; registering
+                // text-embedding-ada-002 unconditionally breaks accounts that
+                // don't have that model enabled. Skip until we actually need it.
             }
             else if (config.Type == ServerType.Azure)
             {
@@ -58,7 +55,8 @@ public static class KernelExtensions
                     _ => new GitHubModelsTextCompletion(endpoint, config.Model!, config.Apikey!));
             }
         }
-        kernelConfig.SetDefaultTextCompletionService(configs.First().Name);
+        var defaultConfig = configs.FirstOrDefault(c => c.IsDefault) ?? configs.First();
+        kernelConfig.SetDefaultTextCompletionService(defaultConfig.Name);
 
         return true;
     }

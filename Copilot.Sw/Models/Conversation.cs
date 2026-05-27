@@ -37,6 +37,10 @@ public class Conversation:ObservableObject
 
         Messages.Add(Message.CreateAsk(question));
 
+        //Ensure native skills are callable by the planner
+        kernel.ImportSkill(new DocumentCreationSkill());
+        kernel.ImportSkill(new Copilot.Sw.Skills.SketchSkill.SketchSegmentCreationSkill());
+
         //Create a SwPlan skill
         var plan = new SolidWorksPlanSkill(kernel, skillsProvider);
         var skills = kernel.ImportSkill(plan);
@@ -85,7 +89,8 @@ public class Conversation:ObservableObject
 
         var workingContext = ISldWorksExtensions.GetSwCurrentContext();
 
-        kernel.ImportSkill(new DocumentCreatationSkill());
+        kernel.ImportSkill(new DocumentCreationSkill());
+        kernel.ImportSkill(new Copilot.Sw.Skills.SketchSkill.SketchSegmentCreationSkill());
 
         //Create a SwPlan skill
         var plan = new SolidWorksPlanSkill(kernel, skillsProvider);

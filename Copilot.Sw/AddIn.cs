@@ -45,9 +45,9 @@ public class AddIn : SwAddInEx,IAddin
         AddinDirectory = Path.GetDirectoryName(typeof(AddIn).Assembly.Location);
         AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
 
-        //Config Service
+        //Config Service — single container shared between AddIn.Services and Ioc.Default
         Services = ConfigureCopilotServices();
-        Ioc.Default.ConfigureServices(ConfigureCopilotServices());
+        Ioc.Default.ConfigureServices(Services);
         
         //Add Taskpane
         var pane = CreateTaskPane<WPFChatPane>();

@@ -24,5 +24,5 @@ public interface ITextCompletionProvider
     /// wirte file
     /// </summary>
     /// <param name="textCompletionConfigs"></param>
-    void Wirte(IList<TextCompletionConfig> textCompletionConfigs);
+    void Write(IList<TextCompletionConfig> textCompletionConfigs);
 }

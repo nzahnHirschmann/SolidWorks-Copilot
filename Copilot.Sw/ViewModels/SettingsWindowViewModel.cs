@@ -251,11 +251,7 @@ public partial class SettingsWindowViewModel :
 
         using var response = await s_githubClient.SendAsync(request).ConfigureAwait(false);
         var body = await response.Content
-#if NET7_0_OR_GREATER
             .ReadAsStringAsync()
-#else
-            .ReadAsStringAsync()
-#endif
             .ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
@@ -292,12 +288,13 @@ public partial class SettingsWindowViewModel :
             Type = t.Type,
             Org = t.Org,
             Apikey = t.Apikey,
+            IsDefault = t.IsDefault,
         };
     }
 
     internal void Save()
     {
-        _textCompletionProvider.Wirte(
+        _textCompletionProvider.Write(
             TextCompletionConfigs
             .Select(p => p.ToTextCompletionConfig())
             .ToList());

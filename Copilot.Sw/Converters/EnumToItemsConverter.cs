@@ -4,7 +4,7 @@ using System.Windows.Data;
 
 namespace Copilot.Sw.Converters;
 
-public sealed class EnumToItemsConveter : IValueConverter
+public sealed class EnumToItemsConverter : IValueConverter
 {
     public object? Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {

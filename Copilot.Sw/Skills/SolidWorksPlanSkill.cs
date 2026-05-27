@@ -18,9 +18,6 @@ public class SolidWorksPlanSkill
     private readonly IKernel _kernel;
     private readonly ISkillsProvider _skillsProvider;
     private readonly ISKFunction _isThrereSwTaskFunc;
-
-    [Obsolete("Use default planner")]
-    private readonly ISKFunction _taskPlanFunc;
     private readonly ISKFunction _chatFunc;
     #endregion
 
@@ -66,14 +63,6 @@ public class SolidWorksPlanSkill
             "ChatOrTask",
             maxTokens: maxTokens,
             temperature:0d
-            );
-
-        var taskPlanPrompt = string.Format(SwSkillSelection.SemanticFuncation, SwSkillSelection.GetAvailavleSkills(_skillsProvider));
-        _taskPlanFunc = kernel.CreateSemanticFunction(
-            taskPlanPrompt,
-            "SolidWorksTaskPlan",
-            maxTokens:maxTokens,
-            temperature:0.5d
             );
 
         _chatFunc = kernel.CreateSemanticFunction(

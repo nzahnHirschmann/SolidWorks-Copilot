@@ -60,6 +60,7 @@ public sealed partial class UITextCompletionConfig:ObservableObject
             Type = Type,
             Org = Org,
             Apikey = Apikey,
+            IsDefault = IsDefault,
         };
     }
 }

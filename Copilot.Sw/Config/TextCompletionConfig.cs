@@ -46,4 +46,10 @@ public sealed class TextCompletionConfig
     /// org,optional
     /// </summary>
     public string? Org { get; set; }
+
+    /// <summary>
+    /// When multiple configs are present, the one flagged as default is
+    /// used as Semantic Kernel's default text-completion service.
+    /// </summary>
+    public bool IsDefault { get; set; }
 }

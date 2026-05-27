@@ -134,21 +134,24 @@ public partial class WPFChatPaneViewModel : ObservableObject
 
     protected virtual async Task SendAsync(CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_question) || 
-            Kernel == null)
+        if (string.IsNullOrWhiteSpace(_question))
         {
             return;
         }
 
         OnPropertyChanged(nameof(HasItem));
-        
+
         try
         {
-
-            //check config
+            //check config — prompt the user if no provider is configured
             if (!_configLoadResult)
             {
                 OpenSettings();
+            }
+
+            if (Kernel == null)
+            {
+                return;
             }
 
             await Conversation.ChatAsync(

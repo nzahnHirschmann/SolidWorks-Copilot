@@ -10,8 +10,6 @@ namespace Copilot.Sw.Skills;
 
 public static class SwSkillSelection
 {
-    private static StringBuilder? _skillBuilder;
-
     public const string SemanticFuncation =
         """
         Create an XML plan step by step, to satisfy the goal given, to run in SolidWorks.
@@ -68,22 +66,15 @@ public static class SwSkillSelection
 
     public static string GetAvailavleSkills(this ISkillsProvider skillsProvider)
     {
-        if (_skillBuilder != null)
+        var builder = new StringBuilder();
+
+        var skills = skillsProvider.GetSkills();
+
+        foreach (var item in skills.Where(p => p.Config != null))
         {
-            return _skillBuilder.ToString();
+            builder.Append(string.Format(SkillTemplate, item.Config.Name, item.Config.Rule));
         }
 
-        _skillBuilder = new StringBuilder();
-
-        var skills = skillsProvider
-            .GetSkills();
-
-        foreach (var item in skills
-            .Where(p => p.Config != null))
-        {
-            _skillBuilder.Append(string.Format(SkillTemplate,item.Config.Name,item.Config.Rule));
-        }
-
-        return _skillBuilder.ToString();
+        return builder.ToString();
     }
 }

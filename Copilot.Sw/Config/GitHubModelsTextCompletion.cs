@@ -105,11 +105,7 @@ internal sealed class GitHubModelsTextCompletion : ITextCompletion
             cancellationToken).ConfigureAwait(false);
 
         var body = await response.Content
-#if NET7_0_OR_GREATER
-            .ReadAsStringAsync(cancellationToken)
-#else
             .ReadAsStringAsync()
-#endif
             .ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)

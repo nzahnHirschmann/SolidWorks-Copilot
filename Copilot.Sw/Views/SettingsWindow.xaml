@@ -200,7 +200,7 @@
                                 Text="Type:" />
                             <ComboBox
                                 Grid.Column="1"
-                                ItemsSource="{Binding SelectedTextCompletionConfig.Type, Converter={StaticResource EnumToItemsConveter}}"
+                                ItemsSource="{Binding SelectedTextCompletionConfig.Type, Converter={StaticResource EnumToItemsConverter}}"
                                 Text="{Binding SelectedTextCompletionConfig.Type, Converter={StaticResource EnumStringConverter}}" />
                         </Grid>
                         <ui:TextBox

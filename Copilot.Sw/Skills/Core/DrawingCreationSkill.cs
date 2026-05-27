@@ -200,6 +200,107 @@ public sealed class DrawingCreationSkill : SldWorksSkillContext
         }
     }
 
+    [KernelFunction(nameof(InsertProjectedView))]
+    [Description("Insert a projected (unfolded) view from a pre-selected " +
+        "parent view. (x, y) is the new view position in mm relative to " +
+        "the sheet, and indirectly determines the projection direction.")]
+    public string InsertProjectedView(double x, double y, bool notAligned = false)
+    {
+        var dwg = RequireDrawing();
+        var doc = (IModelDoc2)dwg;
+        if (doc.SelectionManager is not ISelectionMgr sm || sm.GetSelectedObjectCount2(-1) < 1)
+        {
+            throw new InvalidOperationException(
+                "Select a parent drawing view before calling InsertProjectedView.");
+        }
+        var view = dwg.CreateUnfoldedViewAt3(x / 1000.0, y / 1000.0, 0, notAligned)
+            ?? throw new InvalidOperationException("CreateUnfoldedViewAt3 returned null.");
+        return view.GetName2();
+    }
+
+    [KernelFunction(nameof(InsertCenterlines))]
+    [Description("Insert a centreline between the two pre-selected parallel " +
+        "edges in the active drawing.")]
+    public string InsertCenterlines()
+    {
+        var dwg = RequireDrawing();
+        var doc = (IModelDoc2)dwg;
+        if (doc.SelectionManager is not ISelectionMgr sm || sm.GetSelectedObjectCount2(-1) < 2)
+        {
+            throw new InvalidOperationException(
+                "Select two parallel edges before calling InsertCenterlines.");
+        }
+        var cl = dwg.InsertCenterLine2()
+            ?? throw new InvalidOperationException("InsertCenterLine2 returned null.");
+        return "Centreline inserted.";
+    }
+
+    [KernelFunction(nameof(AutoBalloonViews))]
+    [Description("Insert auto-balloons on the pre-selected drawing view(s) " +
+        "(assembly views only). 'layout' is SQUARE (default), CIRCULAR, " +
+        "TOP, BOTTOM, LEFT, or RIGHT. Returns the balloon count.")]
+    public string AutoBalloonViews(string layout = "SQUARE")
+    {
+        var dwg = RequireDrawing();
+        var doc = (IModelDoc2)dwg;
+        if (doc.SelectionManager is not ISelectionMgr sm || sm.GetSelectedObjectCount2(-1) < 1)
+        {
+            throw new InvalidOperationException(
+                "Select an assembly drawing view before calling AutoBalloonViews.");
+        }
+        var layoutId = layout?.Trim().ToUpperInvariant() switch
+        {
+            "CIRCULAR" or "CIRCLE" => (int)swBalloonLayoutType_e.swDetailingBalloonLayout_Circle,
+            "TOP" => (int)swBalloonLayoutType_e.swDetailingBalloonLayout_Top,
+            "BOTTOM" => (int)swBalloonLayoutType_e.swDetailingBalloonLayout_Bottom,
+            "LEFT" => (int)swBalloonLayoutType_e.swDetailingBalloonLayout_Left,
+            "RIGHT" => (int)swBalloonLayoutType_e.swDetailingBalloonLayout_Right,
+            _ => (int)swBalloonLayoutType_e.swDetailingBalloonLayout_Square,
+        };
+        var balloons = dwg.AutoBalloon3(layoutId, false,
+            (int)swBalloonStyle_e.swBS_Circular,
+            (int)swBalloonFit_e.swBF_2Chars,
+            (int)swBalloonTextContent_e.swBalloonTextItemNumber, "",
+            (int)swBalloonTextContent_e.swBalloonTextQuantity, "",
+            "") as object[];
+        return $"{balloons?.Length ?? 0} balloon(s) inserted ({layout}).";
+    }
+
+    [KernelFunction(nameof(InsertBomTable))]
+    [Description("Insert a Bill of Materials table on the active drawing " +
+        "(assembly drawings only). 'bomType' is TOP_LEVEL (default), " +
+        "PARTS_ONLY, or INDENTED. Uses the default BoM template unless " +
+        "'templatePath' points to a custom .sldbomtbt file.")]
+    public string InsertBomTable(
+        string bomType = "TOP_LEVEL",
+        string templatePath = "",
+        string configurationName = "")
+    {
+        var dwg = RequireDrawing();
+        var doc = (IModelDoc2)dwg;
+
+        var type = bomType?.Trim().ToUpperInvariant() switch
+        {
+            "PARTS_ONLY" or "PARTSONLY" => swBomType_e.swBomType_PartsOnly,
+            "INDENTED" => swBomType_e.swBomType_Indented,
+            _ => swBomType_e.swBomType_TopLevelOnly,
+        };
+
+        var template = templatePath ?? string.Empty;
+        var table = doc.Extension.InsertBomTable3(
+            TemplateName: template,
+            X: 0, Y: 0,
+            BomType: (int)type,
+            ConfigurationName: configurationName ?? string.Empty,
+            Hidden: false,
+            IndentedNumberingType: 0,
+            DetailedCutList: false)
+            ?? throw new InvalidOperationException(
+                "InsertBomTable3 returned null. Ensure this is an assembly " +
+                "drawing and the template path is valid (if provided).");
+        return $"BoM table inserted ({type}).";
+    }
+
     private IDrawingDoc RequireDrawing()
     {
         var doc = ActiveSwDoc

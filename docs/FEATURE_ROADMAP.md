@@ -167,18 +167,20 @@ breaks in the same way.
   3rd-angle 3-view layout, optionally pulls model dimensions
 - [x] `InsertNamedView(modelPath, viewName, x, y)` — any SW orientation
   name (`*Front`, `*Isometric`, …) or saved view
-- [ ] `InsertProjectedView(parentView, direction)`
+- [x] `InsertProjectedView(x, y, notAligned)` — from pre-selected parent
+  view via `CreateUnfoldedViewAt3`
 - [x] `InsertSectionView(x, y, label)` (pre-select section line) and
   `InsertDetailView(x, y, scale, label)` (pre-select detail circle)
 - [x] `InsertAuxiliaryView(x, y, label)`
 - [x] `InsertModelDimensions()` — bring driving dims into all views
 - [x] `AddSheet(name, sheetSize, scale)`, `ActivateSheet(name)`
-- [ ] `InsertBomTable(view, type)`, `InsertHoleTable`,
-  `InsertRevisionTable`, `InsertWeldmentCutList`
-- [ ] `InsertCenterMarks(view)`, `InsertCenterlines(view)`
-- [x] `InsertCenterMarks(style, propagate)` — selection-driven on the
-  active drawing
-- [ ] `AutoBalloons(view, style)`
+- [x] `InsertBomTable(bomType, templatePath, configurationName)` —
+  PARTS_ONLY / TOP_LEVEL / INDENTED
+- [ ] `InsertHoleTable`, `InsertRevisionTable`, `InsertWeldmentCutList`
+- [x] `InsertCenterMarks(view)` (selection-driven, see 4.2),
+  `InsertCenterlines()` (selection-driven, two parallel edges)
+- [x] `AutoBalloonViews(layout)` — SQUARE / CIRCULAR / TOP / BOTTOM /
+  LEFT / RIGHT
 
 ### 4.2 Annotations & GD&T
 
@@ -190,7 +192,9 @@ breaks in the same way.
   PROFILE_LINE/SURFACE, RUNOUT, TOTAL_RUNOUT, SYMMETRY, CONCENTRICITY
 - [x] `AddSurfaceFinish(maxRoughness, symbolType)` — BASIC / MACHINING /
   DONT_MACHINE; pre-select face/edge
-- [ ] `AddWeldSymbol(...)`
+- [x] `AddWeldSymbol(symbol, size, lengthPitch, fieldWeld, peripheral,
+  symmetric)` — pre-select edge/face; SW symbol codes (e.g. `JWMA0102`
+  fillet)
 - [x] `AddNote(text, x, y)`
 
 ### 4.3 **Accuracy / QA checks** (the unique value-add)

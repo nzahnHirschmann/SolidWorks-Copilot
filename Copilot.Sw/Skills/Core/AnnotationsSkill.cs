@@ -190,6 +190,46 @@ public sealed class AnnotationsSkill : SldWorksSkillContext
         return $"Surface finish Ra {maxRoughness} ({sym}) added.";
     }
 
+    // -------- Weld symbol --------
+
+    [KernelFunction(nameof(AddWeldSymbol))]
+    [Description("Add a weld symbol on the pre-selected edge/face. " +
+        "'symbol' is the SolidWorks weld-symbol code (e.g. 'JWMA0102' for " +
+        "fillet, 'JWMA0103' for V-groove). 'size' is the leg/depth string. " +
+        "'lengthPitch' (optional) is the second weld dimension.")]
+    public string AddWeldSymbol(
+        string symbol,
+        string size,
+        string lengthPitch = "",
+        bool fieldWeld = false,
+        bool peripheral = false,
+        bool symmetric = false)
+    {
+        if (string.IsNullOrWhiteSpace(symbol))
+        {
+            throw new ArgumentException("symbol is required.", nameof(symbol));
+        }
+        var doc = ActiveSwDoc
+            ?? throw new InvalidOperationException("No active SolidWorks document.");
+        if (doc.SelectionManager is not ISelectionMgr sm || sm.GetSelectedObjectCount2(-1) < 1)
+        {
+            throw new InvalidOperationException(
+                "Select an edge or face before calling AddWeldSymbol.");
+        }
+        doc.InsertWeldSymbol2(
+            Dim1: size ?? "",
+            Symbol: symbol,
+            Dim2: lengthPitch ?? "",
+            Symmetric: symmetric,
+            FieldWeld: fieldWeld,
+            ShowOtherSide: false,
+            DashOnTop: false,
+            Peripheral: peripheral,
+            HasProcess: false,
+            ProcessValue: "");
+        return $"Weld symbol '{symbol}' size '{size}' added.";
+    }
+
     // -------- Centre marks (drawings only) --------
 
     [KernelFunction(nameof(InsertCenterMarks))]

@@ -1,113 +1,63 @@
-﻿using CommunityToolkit.Mvvm.DependencyInjection;
-using Copilot.Sw.Skills.SketchSkill;
-using Copilot.Sw.Skills.SolidWorksSkill;
-using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.CoreSkills;
-using Microsoft.SemanticKernel.Orchestration;
-using Microsoft.SemanticKernel.Planning.Planners;
-using Microsoft.SemanticKernel.SkillDefinition;
-using SolidWorks.Interop.swconst;
-using System;
+﻿using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Copilot.Sw.Skills;
 
-public class SolidWorksPlanSkill
+/// <summary>
+/// Drives a chat turn with auto function-calling enabled, so the model can
+/// invoke any of the native SolidWorks skill plugins registered on the
+/// <see cref="Kernel"/>. Replaces the legacy SK 0.13 SequentialPlanner flow.
+/// </summary>
+public sealed class SolidWorksPlanSkill
 {
-    #region Fields
-    private readonly IKernel _kernel;
-    private readonly ISkillsProvider _skillsProvider;
-    private readonly ISKFunction _isThrereSwTaskFunc;
-    private readonly ISKFunction _chatFunc;
-    #endregion
+    private const string SystemPrompt =
+        "You are an AI SolidWorks assistant. Your responses are professional " +
+        "and concise. When the user asks you to perform an action that is " +
+        "available as a function/tool, call the function instead of " +
+        "describing it. Otherwise, answer in plain text.";
 
-    #region Consts
-    private const string IsThereSwTask =
-        """
-        SolidWorks has some funcations listed:
-        1.Create part,assembly,drawing and modify some settings.
-        2.Sketch some sketch segment,such as line,arc,spline,slot.
+    private readonly Kernel _kernel;
 
-        Determine whether the input is a function that can be performed in SolidWorks.
-
-        BEGIN CONTENT TO SUMMARIZE:
-        {{$INPUT}}
-        END CONTENT TO SUMMARIZE.
-        
-        Answer with Y or N.
-        """;
-
-    private const string Chat =
-        """
-        You are an AI SolidWorks assistant.Your responses should be professional and helpful.
-        {{$INPUT}}
-        """;
-
-    public static class Parameters
-    {
-        public const string ChatWithSolidWorks = nameof(ChatWithSolidWorks);
-    }
-    #endregion
-
-    #region Ctor
-    public SolidWorksPlanSkill(
-        IKernel kernel,
-        ISkillsProvider skillsProvider,
-        int maxTokens = 1024)
+    public SolidWorksPlanSkill(Kernel kernel)
     {
         _kernel = kernel;
-        _skillsProvider = skillsProvider;
-
-        _isThrereSwTaskFunc = kernel.CreateSemanticFunction(
-            IsThereSwTask,
-            "ChatOrTask",
-            maxTokens: maxTokens,
-            temperature:0d
-            );
-
-        _chatFunc = kernel.CreateSemanticFunction(
-            Chat,
-            "Chat",
-            maxTokens: maxTokens,
-            temperature: 0.8
-            );
     }
-    #endregion
 
-    #region Methods
-    [SKFunction("Chat with SolidWorks,parse solidworks perform tasks if there is a goal")]
-    [SKFunctionName(Parameters.ChatWithSolidWorks)]
-    public async Task<SKContext> ChatWithSolidWorksAsync(
+    /// <summary>
+    /// Sends <paramref name="input"/> (plus <paramref name="history"/>) to the
+    /// kernel's chat completion service with auto tool-calling enabled.
+    /// </summary>
+    /// <returns>The assistant's textual reply (may be empty if the model only
+    /// invoked tools).</returns>
+    public async Task<string> ChatAsync(
         string input,
-        SKContext context)
+        string history,
+        CancellationToken cancellationToken)
     {
-        var askVariable = new ContextVariables(input);
+        var chat = _kernel.GetRequiredService<IChatCompletionService>();
 
-        var result = await _isThrereSwTaskFunc.InvokeAsync(
-            input, 
-            new SKContext(
-                askVariable,
-                context.Memory,
-                context.Skills,
-                context.Log));
-
-        if (result.Result.Trim() == "Y")
+        var messages = new ChatHistory();
+        messages.AddSystemMessage(SystemPrompt);
+        if (!string.IsNullOrWhiteSpace(history))
         {
-            //Use Semantic Kernel Plan skill
-            //var plan = await _taskPlanFunc.InvokeAsync(input);
-            //plan.Variables.Set("Plan", plan.Result);
-            var planner = new SequentialPlanner(_kernel);
+            messages.AddSystemMessage("Conversation so far:\n" + history);
+        }
+        messages.AddUserMessage(input);
 
-            _kernel.ImportSkill(planner);
-            var plan = await planner.CreatePlanAsync(input);
-            
-            return context;
-        }
-        else
-        {           
-            var chatResult = await _chatFunc.InvokeAsync(input, context);
-            return chatResult;
-        }
-    }    
-    #endregion
+        var settings = new OpenAIPromptExecutionSettings
+        {
+            FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
+            Temperature = 0.2,
+        };
+
+        var result = await chat
+            .GetChatMessageContentAsync(messages, settings, _kernel, cancellationToken)
+            .ConfigureAwait(false);
+
+        return result.Content ?? string.Empty;
+    }
 }

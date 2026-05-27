@@ -1,7 +1,8 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.KernelExtensions;
+using Microsoft.SemanticKernel.ChatCompletion;
 using Copilot.Sw.Config;
+using Copilot.Sw.Extensions;
 using Copilot.Sw.Skills;
 
 namespace Copilot.Sw.ViewModels.Tests;
@@ -9,31 +10,29 @@ namespace Copilot.Sw.ViewModels.Tests;
 [TestClass()]
 public class KernelTests
 {
-    [TestMethod()]
+    /// <summary>
+    /// Requires a real OpenAI API key in <c>%APPDATA%\SolidWorks Copilot\settings.json</c>.
+    /// Skipped on CI / fresh machines.
+    /// </summary>
+    [TestMethod, Ignore("Requires live OpenAI credentials.")]
     public async Task QuestionTest()
     {
-        IKernel kernel = Microsoft.SemanticKernel.Kernel.Builder.Build();
-
-        var config = new TextCompletionProvider().Load().FirstOrDefault();
-        if (config == null)
+        var configs = new TextCompletionProvider().Load();
+        if (configs is null || configs.Count == 0)
         {
-            Assert.Fail("Config your Api key");
+            Assert.Inconclusive("Config your Api key");
+            return;
         }
 
-        kernel.Config.AddOpenAITextCompletionService(
-            config.Name, 
-            config.Model,
-            config.Apikey, 
-            config.Org);
+        var builder = Kernel.CreateBuilder();
+        builder.LoadConfigs(configs);
+        var kernel = builder.Build();
 
-        var skill = kernel.ImportSemanticSkillFromDirectory(
-            new SkillsProvider().SkillsLocation, 
-            "QASkill");
+        var chat = kernel.GetRequiredService<IChatCompletionService>();
+        var history = new ChatHistory();
+        history.AddUserMessage("Tell me something about SolidWorks");
 
-        var result = await kernel.RunAsync(
-            "Tell me somthing about solidworks", 
-            skill["Question"]);
-                    
-        Console.WriteLine(result);
+        var result = await chat.GetChatMessageContentAsync(history, kernel: kernel);
+        Console.WriteLine(result.Content);
     }
 }

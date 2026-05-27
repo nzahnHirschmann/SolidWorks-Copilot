@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.DependencyInjection;
 using Copilot.Sw.Config;
+using Copilot.Sw.Extensions;
 using Copilot.Sw.Skills;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
@@ -35,32 +36,23 @@ public class StandandAloneSw : IAddin
 
     public IntPtr SwHandle => Sw is null ? IntPtr.Zero : new IntPtr(Sw.IFrameObject().GetHWnd());
 
-    public IKernel InitKernel()
+    public Kernel InitKernel()
     {
-        IKernel kernel = Kernel.Builder.Build();
-
-        var config = Ioc.Default.GetService<ITextCompletionProvider>()
-            .Load()
-            .FirstOrDefault();
-        if (config == null)
+        var configs = Ioc.Default.GetService<ITextCompletionProvider>()?.Load();
+        if (configs is null || configs.Count == 0)
         {
             Assert.Fail("Config your Api key");
         }
 
-        kernel.Config.AddOpenAITextCompletionService(
-            config.Name,
-            config.Model,
-            config.Apikey,
-            config.Org);
-
-        return kernel;
+        var builder = Kernel.CreateBuilder();
+        builder.LoadConfigs(configs);
+        return builder.Build();
     }
 
     private IServiceProvider ConfigureCopilotServices()
     {
         var services = new ServiceCollection();
 
-        services.AddLogging();
         services.AddSingleton<IAddin>(this);
 
         services.AddSingleton<ITextCompletionProvider, TextCompletionProvider>();

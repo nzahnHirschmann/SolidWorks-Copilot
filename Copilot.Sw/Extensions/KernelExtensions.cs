@@ -1,62 +1,90 @@
 ﻿using Copilot.Sw.Config;
 using Microsoft.SemanticKernel;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 
 namespace Copilot.Sw.Extensions;
 
 public static class KernelExtensions
 {
+    /// <summary>
+    /// Registers a chat-completion service for every <paramref name="configs"/>
+    /// entry on the given <paramref name="builder"/>. The provider marked
+    /// <c>IsDefault</c> (or the first entry if none is) is registered without
+    /// a serviceId so it becomes the kernel's default chat service.
+    /// </summary>
+    /// <returns><see langword="false"/> if <paramref name="configs"/> is null
+    /// or empty.</returns>
     public static bool LoadConfigs(
-        this KernelConfig kernelConfig, 
-        IReadOnlyList<TextCompletionConfig> configs)
+        this IKernelBuilder builder,
+        IReadOnlyList<TextCompletionConfig>? configs)
     {
-        if (configs?.Any() != true)
+        if (configs is null || configs.Count == 0)
         {
             return false;
         }
 
-        kernelConfig.RemoveAllTextCompletionServices();
-        kernelConfig.RemoveAllTextEmbeddingGenerationServices();
+        var defaultConfig = configs.FirstOrDefault(c => c.IsDefault) ?? configs[0];
+
         foreach (var config in configs)
         {
-            if (config.Type == ServerType.OpenAI)
-            {
-                kernelConfig.AddOpenAITextCompletionService(
-                    config.Name,                       // alias used in the prompt templates' config.json
-                    config.Model,                     // OpenAI Model Name
-                    config.Apikey,            // OpenAI API key
-                    config.Org
-                    );
-                // Embeddings are not used by the chat flow today; registering
-                // text-embedding-ada-002 unconditionally breaks accounts that
-                // don't have that model enabled. Skip until we actually need it.
-            }
-            else if (config.Type == ServerType.Azure)
-            {
-                kernelConfig.AddAzureTextCompletionService(
-                    config.Name,
-                    config.Model,
-                    config.Apikey,
-                    config.Org
-                    );
-            }
-            else if (config.Type == ServerType.GitHubModels)
-            {
-                // GitHub Models exposes an OpenAI-compatible chat-completions
-                // endpoint. We adapt it to ITextCompletion so the existing
-                // semantic-function skills work unchanged.
-                var endpoint = string.IsNullOrWhiteSpace(config.Endpoint)
-                    ? GitHubModelsTextCompletion.DefaultEndpoint
-                    : config.Endpoint!;
+            var isDefault = ReferenceEquals(config, defaultConfig);
+            // Register the default config without a serviceId so it wins
+            // GetRequiredService<IChatCompletionService>(); register the
+            // others under their own name so callers can still pick them
+            // explicitly via PromptExecutionSettings.ServiceId.
+            var serviceId = isDefault ? null : config.Name;
 
-                kernelConfig.AddTextCompletionService(
-                    config.Name,
-                    _ => new GitHubModelsTextCompletion(endpoint, config.Model!, config.Apikey!));
+            switch (config.Type)
+            {
+                case ServerType.OpenAI:
+                    builder.AddOpenAIChatCompletion(
+                        modelId: config.Model!,
+                        apiKey: config.Apikey!,
+                        orgId: string.IsNullOrWhiteSpace(config.Org) ? null : config.Org,
+                        serviceId: serviceId);
+                    break;
+
+                case ServerType.Azure:
+                    // Legacy schema: Model holds the deployment name; Org
+                    // holds the endpoint URL.
+                    builder.AddAzureOpenAIChatCompletion(
+                        deploymentName: config.Model!,
+                        endpoint: config.Org!,
+                        apiKey: config.Apikey!,
+                        serviceId: serviceId);
+                    break;
+
+                case ServerType.GitHubModels:
+                {
+                    // GitHub Models exposes an OpenAI-compatible chat
+                    // endpoint. Point the OpenAI connector at it via a
+                    // BaseAddress on a dedicated HttpClient.
+                    var endpoint = string.IsNullOrWhiteSpace(config.Endpoint)
+                        ? TextCompletionConfig.GitHubModelsDefaultEndpoint
+                        : config.Endpoint!;
+                    if (!endpoint.EndsWith("/", StringComparison.Ordinal))
+                    {
+                        endpoint += "/";
+                    }
+
+                    var httpClient = new HttpClient
+                    {
+                        BaseAddress = new Uri(endpoint),
+                    };
+
+                    builder.AddOpenAIChatCompletion(
+                        modelId: config.Model!,
+                        apiKey: config.Apikey!,
+                        orgId: null,
+                        serviceId: serviceId,
+                        httpClient: httpClient);
+                    break;
+                }
             }
         }
-        var defaultConfig = configs.FirstOrDefault(c => c.IsDefault) ?? configs.First();
-        kernelConfig.SetDefaultTextCompletionService(defaultConfig.Name);
 
         return true;
     }

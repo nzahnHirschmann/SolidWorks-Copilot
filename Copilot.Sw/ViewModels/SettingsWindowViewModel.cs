@@ -130,7 +130,7 @@ public partial class SettingsWindowViewModel :
             Name = "GitHub Models",
             Model = "openai/gpt-4o-mini",
             Type = ServerType.GitHubModels,
-            Endpoint = GitHubModelsTextCompletion.DefaultEndpoint,
+            Endpoint = TextCompletionConfig.GitHubModelsDefaultEndpoint,
             IsDefault = nothing,
         });
     }
@@ -232,7 +232,7 @@ public partial class SettingsWindowViewModel :
             {
                 Name = GitHubConfigName,
                 Type = ServerType.GitHubModels,
-                Endpoint = GitHubModelsTextCompletion.DefaultEndpoint,
+                Endpoint = TextCompletionConfig.GitHubModelsDefaultEndpoint,
                 Model = GitHubModel,
                 Apikey = GitHubToken,
                 IsDefault = true,

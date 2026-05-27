@@ -30,7 +30,7 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.0-preview2" />
-    <PackageReference Include="Microsoft.SemanticKernel" Version="0.13.277.1-preview" />
+    <PackageReference Include="Microsoft.SemanticKernel" Version="1.76.0" />
     <PackageReference Include="MvvmDialogs" Version="9.1.0" />
     <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
     <PackageReference Include="WPF-UI" Version="3.0.0-preview.1" />

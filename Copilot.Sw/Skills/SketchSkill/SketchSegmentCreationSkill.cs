@@ -1,18 +1,19 @@
 ﻿using CommunityToolkit.Mvvm.DependencyInjection;
-using Microsoft.SemanticKernel.SkillDefinition;
-using System;
+using Microsoft.SemanticKernel;
+using System.ComponentModel;
 
 namespace Copilot.Sw.Skills.SketchSkill;
 
 public class SketchSegmentCreationSkill
 {
-    [SKFunction("CreateCircle")]
-    [SKFunctionName("CreateCircle")]
+    [KernelFunction("CreateCircle")]
+    [Description("Create a circle in the active SolidWorks sketch. " +
+        "Position must be \"(x,y,z,radius)\" with units in millimetres.")]
     public void CreateCircle(string postion)
     {
         var addin = Ioc.Default.GetService<IAddin>();
 
-        var doc = addin.Sw.IActiveDoc2;
+        var doc = addin!.Sw.IActiveDoc2;
         var sketch = doc.SketchManager.ActiveSketch;
         if (sketch == null)
         {

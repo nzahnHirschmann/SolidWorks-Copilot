@@ -1,130 +1,78 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using Copilot.Sw.Extensions;
 using Copilot.Sw.Skills;
+using Copilot.Sw.Skills.SketchSkill;
 using Copilot.Sw.Skills.SolidWorksSkill;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.KernelExtensions;
-using Microsoft.SemanticKernel.Orchestration;
 using System.Collections.ObjectModel;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Xarial.XCad.SolidWorks.Documents.Exceptions;
 
 namespace Copilot.Sw.Models;
 
-public class Conversation:ObservableObject
+public class Conversation : ObservableObject
 {
     private string _history = "";
 
-    public Conversation()
-    {
-        Variables.Set("history", _history);
-    }
-
-    public ObservableCollection<Message> Messages { get; set; } = new ();
-
-    public ContextVariables Variables { get; set; } = new();
+    public ObservableCollection<Message> Messages { get; set; } = new();
 
     #region Chat
     public async Task ChatAsync(
-        IKernel kernel,
+        Kernel kernel,
         ISkillsProvider skillsProvider,
         string question,
         CancellationToken cancellationToken)
     {
-        Variables.Set("input", question);
-
         Messages.Add(Message.CreateAsk(question));
 
-        //Ensure native skills are callable by the planner
-        kernel.ImportSkill(new DocumentCreationSkill());
-        kernel.ImportSkill(new Copilot.Sw.Skills.SketchSkill.SketchSegmentCreationSkill());
+        EnsureNativePluginsLoaded(kernel);
 
-        //Create a SwPlan skill
-        var plan = new SolidWorksPlanSkill(kernel, skillsProvider);
-        var skills = kernel.ImportSkill(plan);
-
-        //send
-        var result = await kernel.RunAsync(
-            Variables,
-            cancellationToken: cancellationToken,
-            skills[SolidWorksPlanSkill.Parameters.ChatWithSolidWorks]
-            );
-
-        //check error
-        if (result.ErrorOccurred)
+        try
         {
-            Messages.Add(Message.CreateError(result.LastErrorDescription));
-            return;
+            var planSkill = new SolidWorksPlanSkill(kernel);
+            var reply = await planSkill
+                .ChatAsync(question, _history, cancellationToken)
+                .ConfigureAwait(false);
+
+            AddHistory($"Me: {question}\nAI: {reply}\n");
+
+            // If the plan came back as XML (legacy semantic-function output),
+            // surface it as an action message; otherwise show plain text.
+            if (SwPlanModel.TryParse(reply, out var planModel))
+            {
+                Messages.Add(new ActionAnswerMessage(planModel));
+            }
+            else
+            {
+                Messages.Add(Message.CreateAnswer(reply));
+            }
         }
-
-        //update history
-        var theNewChatExchange = $"Me: {question}\nAI:{result}\n";
-        AddHistory(theNewChatExchange);
-
-        if (result.Variables.Get("plan", out var planValue)
-            && SwPlanModel.TryParse(planValue, out var planModel))
+        catch (System.Exception ex)
         {
-            //plan
-            var actionMessage = new ActionAnswerMessage(planModel);
-            Messages.Add(actionMessage);
-        }
-        else
-        {
-            //normal response
-            Messages.Add(Message.CreateAnswer(result.ToString()));
+            Messages.Add(Message.CreateError(ex.Message));
         }
     }
 
-    public async Task ChatWithContextAsync(
-        IKernel kernel,
+    public Task ChatWithContextAsync(
+        Kernel kernel,
         ISkillsProvider skillsProvider,
         string question,
         CancellationToken cancellationToken)
+        => ChatAsync(kernel, skillsProvider, question, cancellationToken);
+
+    private static void EnsureNativePluginsLoaded(Kernel kernel)
     {
-        Variables.Set("input", question);
-
-        Messages.Add(Message.CreateAsk(question));
-
-        var workingContext = ISldWorksExtensions.GetSwCurrentContext();
-
-        kernel.ImportSkill(new DocumentCreationSkill());
-        kernel.ImportSkill(new Copilot.Sw.Skills.SketchSkill.SketchSegmentCreationSkill());
-
-        //Create a SwPlan skill
-        var plan = new SolidWorksPlanSkill(kernel, skillsProvider);
-        var swPlanSkill = kernel.ImportSkill(plan, SolidWorksPlanSkill.Parameters.ChatWithSolidWorks);
-
-        //send
-        var result = await kernel.RunAsync(
-            Variables,
-            cancellationToken: cancellationToken,
-            swPlanSkill[SolidWorksPlanSkill.Parameters.ChatWithSolidWorks]
-            );
-
-        //check error
-        if (result.ErrorOccurred)
+        // Idempotent: AddFromObject would throw if the plugin name is taken,
+        // so only register what isn't there yet.
+        if (!kernel.Plugins.Contains(nameof(DocumentCreationSkill)))
         {
-            Messages.Add(Message.CreateError(result.LastErrorDescription));
-            return;
+            kernel.Plugins.AddFromObject(new DocumentCreationSkill(), nameof(DocumentCreationSkill));
         }
-
-        //update history
-        var theNewChatExchange = $"Me: {question}\nAI:{result}\n";
-        AddHistory(theNewChatExchange);
-
-        if (result.Variables.Get("Plan", out var planValue)
-            && SwPlanModel.TryParse(planValue, out var planModel))
+        if (!kernel.Plugins.Contains(nameof(SketchSegmentCreationSkill)))
         {
-            //plan
-            var actionMessage = new ActionAnswerMessage(planModel);
-            Messages.Add(actionMessage);
-        }
-        else
-        {
-            //normal response
-            Messages.Add(Message.CreateAnswer(result.ToString()));
+            kernel.Plugins.AddFromObject(
+                new SketchSegmentCreationSkill(),
+                nameof(SketchSegmentCreationSkill));
         }
     }
     #endregion
@@ -133,7 +81,6 @@ public class Conversation:ObservableObject
     internal void AddHistory(string theNewChatExchange)
     {
         _history += theNewChatExchange;
-        Variables.Set("history", _history);
     }
     #endregion
 }

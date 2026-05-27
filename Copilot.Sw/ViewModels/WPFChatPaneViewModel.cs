@@ -13,7 +13,6 @@ using System.Windows;
 using Copilot.Sw.Config;
 using Copilot.Sw.Skills;
 using System.Collections.Generic;
-using Microsoft.SemanticKernel.Memory;
 using Copilot.Sw.Extensions;
 
 namespace Copilot.Sw.ViewModels;
@@ -64,7 +63,7 @@ public partial class WPFChatPaneViewModel : ObservableObject
 
     public Conversation Conversation { get; set; } = new();
 
-    public IKernel? Kernel { get; private set; }
+    public Kernel? Kernel { get; private set; }
 
     public bool HasItem => Conversation?.Messages?.Any() == true;
 
@@ -132,15 +131,17 @@ public partial class WPFChatPaneViewModel : ObservableObject
             return;
         }
 
-        Kernel = Microsoft.SemanticKernel.Kernel.Builder
-            .Configure(c =>
-            {
-                c.LoadConfigs(configs);
-            })
-            .WithMemoryStorage(new VolatileMemoryStore())
-            .Build();
+        var builder = Microsoft.SemanticKernel.Kernel.CreateBuilder();
+        var loaded = builder.LoadConfigs(configs);
 
-        _configLoadResult = Kernel.Config.TextCompletionServices?.Any() == true;
+        if (!loaded)
+        {
+            _configLoadResult = false;
+            return;
+        }
+
+        Kernel = builder.Build();
+        _configLoadResult = true;
     }
     #endregion
 

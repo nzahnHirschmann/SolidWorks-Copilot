@@ -1,40 +1,27 @@
-﻿using Microsoft.SemanticKernel.Orchestration;
-using Microsoft.SemanticKernel.SkillDefinition;
+﻿using Microsoft.SemanticKernel;
+using System.ComponentModel;
 
 namespace Copilot.Sw.Skills.SolidWorksSkill;
 
-public class DocumentCreationSkill:SldWorksSkillContext
+public class DocumentCreationSkill : SldWorksSkillContext
 {
-    //[SKFunction("SolidWorks document creation or modify settings skill")]
-    //[SKFunctionName("SolidWorks")]
-    //public void SolidWorksLevelPlan(SKContext context)
-    //{
-
-    //}
-
-    [SKFunction("Create a solidworks's part doucment")]
-    [SKFunctionName(nameof(CreatePart))]
+    [KernelFunction(nameof(CreatePart))]
+    [Description("Create a new SolidWorks part document.")]
     public void CreatePart()
     {
-        var doc = Sw.NewPart();
+        Sw.NewPart();
     }
 
-    [SKFunction("Create a solidworks's assembly doucment")]
-    [SKFunctionName(nameof(CreateAssembly))]
+    [KernelFunction(nameof(CreateAssembly))]
+    [Description("Create a new SolidWorks assembly document.")]
     public void CreateAssembly()
     {
-        var doc = Sw.NewAssembly();
+        Sw.NewAssembly();
     }
 
-    [SKFunction("Create a solidworks's drawing doucment")]
-    [SKFunctionName(nameof(CreateDrawing))]
+    [KernelFunction(nameof(CreateDrawing))]
+    [Description("Create a new SolidWorks drawing document.")]
     public void CreateDrawing()
     {
-
-    }
-
-    public void Setting(SKContext context)
-    {
-
     }
 }

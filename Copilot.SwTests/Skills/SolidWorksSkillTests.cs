@@ -1,8 +1,5 @@
 ﻿using Copilot.Sw.Skills;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.CoreSkills;
-using Microsoft.SemanticKernel.KernelExtensions;
-using Microsoft.SemanticKernel.Orchestration;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Copilot.SwTests.Skills;
@@ -10,35 +7,22 @@ namespace Copilot.SwTests.Skills;
 [TestClass]
 public class SolidWorksPlanSkillTests : SkillTestbase
 {
-    [TestMethod]
+    [TestMethod, Ignore("Requires a running SolidWorks instance + live LLM credentials.")]
     public async Task CreateTest()
     {
-        var skContext = await Kernel.RunAsync(
-            "什么是机械工程?",
-            GetChatWithSwFunc());
+        var planSkill = new SolidWorksPlanSkill(Kernel);
+        var reply = await planSkill.ChatAsync("什么是机械工程?", history: "", default);
 
-        Console.WriteLine(skContext);
-        Assert.AreNotEqual(skContext.ToString(), "Drawing");
+        Console.WriteLine(reply);
+        Assert.AreNotEqual("Drawing", reply);
     }
 
-    [TestMethod]
+    [TestMethod, Ignore("Requires a running SolidWorks instance + live LLM credentials.")]
     public async Task TaskTest()
     {
-        var skContext = await Kernel.RunAsync(
-            "草图中绘制三个圆形",GetChatWithSwFunc());
+        var planSkill = new SolidWorksPlanSkill(Kernel);
+        var reply = await planSkill.ChatAsync("草图中绘制三个圆形", history: "", default);
 
-        Assert.IsTrue(skContext.Result.Contains("Nothing"));
-    }
-
-    private ISKFunction GetChatWithSwFunc()
-    {
-        var dir = SkillsDir();
-        var skillProvider = new SkillsProvider(dir);
-
-        var swPlanSkill = new SolidWorksPlanSkill(Kernel, skillProvider);
-        var skill = Kernel.ImportSkill(swPlanSkill, SolidWorksPlanSkill.Parameters.ChatWithSolidWorks);
-
-        var chatFunc = skill[SolidWorksPlanSkill.Parameters.ChatWithSolidWorks];
-        return chatFunc;
+        Assert.IsTrue(reply.Contains("Nothing"));
     }
 }

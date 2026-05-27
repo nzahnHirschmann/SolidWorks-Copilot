@@ -172,7 +172,7 @@ Effort key: **S** ≈ <½ day · **M** ≈ 1–2 days · **L** ≈ ≥1 week.
 
 ### Phase 6 — Long horizon
 
-- [ ] **P6.1 (L)** Upgrade Semantic Kernel from `0.13.277.1-preview` to 1.x: replace `ITextCompletion`/`IChatCompletion`, replace `SequentialPlanner`, switch `[SKFunction]` attributes to `[KernelFunction]`. Likely requires reworking `SolidWorksPlanSkill` and the GitHub Models adapter.
+- [x] **P6.1 (L)** Upgraded Semantic Kernel from `0.13.277.1-preview` to **`1.76.0`** (chat-completion only, function-calling via `FunctionChoiceBehavior.Auto()` instead of the obsolete `SequentialPlanner`). Custom `GitHubModelsTextCompletion` adapter deleted; GitHub Models is now served by the stock OpenAI connector pointed at `https://models.github.ai/inference/` via a custom `HttpClient.BaseAddress`. All `[SKFunction]`/`[SKFunctionName]` replaced with `[KernelFunction]` + `[Description]`. Plugins loaded with `kernel.Plugins.AddFromObject(...)`.
 - [ ] **P6.2 (L)** Move skill discovery to support both file-system prompts and native skills uniformly; expose a "Skills" panel in Settings.
 
 ---

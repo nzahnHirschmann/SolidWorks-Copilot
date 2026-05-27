@@ -17,6 +17,9 @@ public enum ServerType
 
 public sealed class TextCompletionConfig
 {
+    /// <summary>Default GitHub Models inference endpoint.</summary>
+    public const string GitHubModelsDefaultEndpoint = "https://models.github.ai/inference/";
+
     /// <summary>
     /// name for this config
     /// </summary>

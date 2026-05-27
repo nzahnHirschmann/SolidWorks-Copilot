@@ -4,6 +4,15 @@ public enum ServerType
 {
     OpenAI,
     Azure,
+
+    /// <summary>
+    /// GitHub Models (https://models.github.ai/inference).
+    /// Use a GitHub Personal Access Token with the "models:read" scope
+    /// as <see cref="TextCompletionConfig.Apikey"/>. The
+    /// <see cref="TextCompletionConfig.Model"/> field expects a GitHub
+    /// Models identifier such as "openai/gpt-4o-mini" or "openai/gpt-4o".
+    /// </summary>
+    GitHubModels,
 }
 
 public sealed class TextCompletionConfig

@@ -44,6 +44,19 @@ public static class KernelExtensions
                     config.Org
                     );
             }
+            else if (config.Type == ServerType.GitHubModels)
+            {
+                // GitHub Models exposes an OpenAI-compatible chat-completions
+                // endpoint. We adapt it to ITextCompletion so the existing
+                // semantic-function skills work unchanged.
+                var endpoint = string.IsNullOrWhiteSpace(config.Endpoint)
+                    ? GitHubModelsTextCompletion.DefaultEndpoint
+                    : config.Endpoint!;
+
+                kernelConfig.AddTextCompletionService(
+                    config.Name,
+                    _ => new GitHubModelsTextCompletion(endpoint, config.Model!, config.Apikey!));
+            }
         }
         kernelConfig.SetDefaultTextCompletionService(configs.First().Name);
 

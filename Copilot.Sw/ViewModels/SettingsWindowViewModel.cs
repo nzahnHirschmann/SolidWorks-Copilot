@@ -50,9 +50,10 @@ public partial class SettingsWindowViewModel :
         bool nothing = TextCompletionConfigs.Count == 0;
         TextCompletionConfigs.Add(new UITextCompletionConfig()
         {
-            Name = "ServerName",
-            Model = "text-davinci-003",
-            Type = ServerType.OpenAI,
+            Name = "GitHub Models",
+            Model = "openai/gpt-4o-mini",
+            Type = ServerType.GitHubModels,
+            Endpoint = GitHubModelsTextCompletion.DefaultEndpoint,
             IsDefault = nothing,
         });
     }

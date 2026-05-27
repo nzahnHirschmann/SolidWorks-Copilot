@@ -176,16 +176,22 @@ breaks in the same way.
 - [ ] `InsertBomTable(view, type)`, `InsertHoleTable`,
   `InsertRevisionTable`, `InsertWeldmentCutList`
 - [ ] `InsertCenterMarks(view)`, `InsertCenterlines(view)`
+- [x] `InsertCenterMarks(style, propagate)` — selection-driven on the
+  active drawing
 - [ ] `AutoBalloons(view, style)`
 
 ### 4.2 Annotations & GD&T
 
 - [ ] `AddDimension(edge|distance, value?)` — driven + driving
-- [ ] `AddDatumFeature(face, letter)`
-- [ ] `AddGeometricTolerance(face, frame)` — flatness, perpendicularity,
-  position, runout, etc.
-- [ ] `AddSurfaceFinish(face, spec)`
-- [ ] `AddWeldSymbol(...)`, `AddNote(text, x, y)`
+- [x] `AddDatumFeature(letter)` — pre-select face/edge
+- [x] `AddGeometricTolerance(symbol, tolerance, datumA, datumB, datumC)`
+  — pre-select face/edge; symbols POSITION, FLATNESS, STRAIGHTNESS,
+  PERPENDICULARITY, PARALLELISM, ANGULARITY, CIRCULARITY, CYLINDRICITY,
+  PROFILE_LINE/SURFACE, RUNOUT, TOTAL_RUNOUT, SYMMETRY, CONCENTRICITY
+- [x] `AddSurfaceFinish(maxRoughness, symbolType)` — BASIC / MACHINING /
+  DONT_MACHINE; pre-select face/edge
+- [ ] `AddWeldSymbol(...)`
+- [x] `AddNote(text, x, y)`
 
 ### 4.3 **Accuracy / QA checks** (the unique value-add)
 

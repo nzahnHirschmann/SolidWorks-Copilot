@@ -16,6 +16,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- ProtectedData (DPAPI) for at-rest encryption of API keys/tokens. -->
+    <Reference Include="System.Security" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Copilot.SwTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />
   </ItemGroup>
 

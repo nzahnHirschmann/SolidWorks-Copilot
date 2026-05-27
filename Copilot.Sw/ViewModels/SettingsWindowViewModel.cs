@@ -91,6 +91,29 @@ public partial class SettingsWindowViewModel :
     };
     #endregion
 
+    #region Inline validation
+    // Clear any stale "signed in" / error status as soon as the user edits
+    // the token or model fields, so the displayed state always reflects
+    // either the current (unverified) input or the last sign-in attempt.
+    partial void OnGitHubTokenChanged(string? value)
+    {
+        if (!IsSigningIn)
+        {
+            GitHubStatus = null;
+            GitHubStatusIsError = false;
+        }
+    }
+
+    partial void OnGitHubModelChanged(string value)
+    {
+        if (!IsSigningIn)
+        {
+            GitHubStatus = null;
+            GitHubStatusIsError = false;
+        }
+    }
+    #endregion
+
     #region Commands - General
     [RelayCommand]
     private void Ok(Window window)

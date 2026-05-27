@@ -20,13 +20,14 @@ public partial class WPFChatPane : UserControl
         InitializeComponent();
         DataContext = _vm = Ioc.Default.GetService<WPFChatPaneViewModel>();
 
-        try
-        {
-            _vm.Init();
-        }
-        catch (System.Exception ex)
-        {
-            MessageBox.Show(ex.Message);
-        }
+        Loaded += OnLoaded;
+    }
+
+    private async void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= OnLoaded;
+        // Fire-and-forget on the UI thread: InitAsync surfaces any error as
+        // a chat message rather than throwing.
+        await _vm.InitAsync();
     }
 }

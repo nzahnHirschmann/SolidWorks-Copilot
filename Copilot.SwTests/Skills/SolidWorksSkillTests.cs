@@ -27,8 +27,6 @@ public class SolidWorksPlanSkillTests : SkillTestbase
         var skContext = await Kernel.RunAsync(
             "草图中绘制三个圆形",GetChatWithSwFunc());
 
-        var plan = skContext.Variables.ToPlan();
-
         Assert.IsTrue(skContext.Result.Contains("Nothing"));
     }
 

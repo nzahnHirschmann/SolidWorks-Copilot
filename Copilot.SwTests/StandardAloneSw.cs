@@ -33,6 +33,8 @@ public class StandandAloneSw : IAddin
 
     public ISldWorks Sw { get; private set; }
 
+    public IntPtr SwHandle => Sw is null ? IntPtr.Zero : new IntPtr(Sw.IFrameObject().GetHWnd());
+
     public IKernel InitKernel()
     {
         IKernel kernel = Kernel.Builder.Build();

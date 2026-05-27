@@ -10,12 +10,14 @@ namespace Copilot.Sw.Views;
 public partial class QuickChatPane : Window
 {
     private readonly IAddin _addin;
+    private readonly QuickChatPaneViewModel _vm;
 
     public QuickChatPane(
         IAddin addin,
         QuickChatPaneViewModel quickChatPaneViewModel)
     {
         _addin = addin;
+        _vm = quickChatPaneViewModel;
 
         InitializeComponent();
         var windowInteropHelper = new WindowInteropHelper(this);
@@ -25,18 +27,9 @@ public partial class QuickChatPane : Window
         DataContext = quickChatPaneViewModel;
 
         this.Loaded += QuickChatPane_Loaded;
-
-        try
-        {
-            quickChatPaneViewModel.Init();
-        }
-        catch (System.Exception ex)
-        {
-            MessageBox.Show(ex.Message);
-        }
     }
 
-    private void QuickChatPane_Loaded(object sender, RoutedEventArgs e)
+    private async void QuickChatPane_Loaded(object sender, RoutedEventArgs e)
     {
         this.Loaded -= QuickChatPane_Loaded;
 
@@ -44,5 +37,7 @@ public partial class QuickChatPane : Window
 
         Left = workArea.Left + workArea.Width * 0.5d - ActualWidth * 0.5d;
         Top = workArea.Top + workArea.Height * 0.8d - ActualHeight * 0.5d;
+
+        await _vm.InitAsync();
     }
 }

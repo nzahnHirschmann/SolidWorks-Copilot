@@ -29,6 +29,7 @@ public partial class WPFChatPaneViewModel : ObservableObject
     protected readonly ISkillsProvider _skillsProvider;
     protected bool _configLoadResult;
     private LocalSemanticFunctionModel _selectedSkill;
+    [ObservableProperty] private bool _isInitializing;
     #endregion
 
     #region Ctor
@@ -74,6 +75,51 @@ public partial class WPFChatPaneViewModel : ObservableObject
     public void Init()
     {
         BuildKernel();
+    }
+
+    /// <summary>
+    /// Builds the Semantic Kernel on a background thread so the SolidWorks
+    /// UI thread isn't blocked by disk I/O / HTTP handshakes. Any failure
+    /// is surfaced as an error message in the chat conversation instead of
+    /// throwing into the caller (which historically popped a MessageBox
+    /// during add-in startup).
+    /// </summary>
+    public async Task InitAsync()
+    {
+        if (IsInitializing)
+        {
+            return;
+        }
+
+        IsInitializing = true;
+        try
+        {
+            await Task.Run(() =>
+            {
+                try
+                {
+                    BuildKernel();
+                }
+                catch (Exception ex)
+                {
+                    Application.Current?.Dispatcher?.Invoke(() =>
+                        Conversation.Messages.Add(
+                            Message.CreateError($"Failed to initialise AI provider: {ex.Message}")));
+                }
+            }).ConfigureAwait(true);
+
+            if (!_configLoadResult)
+            {
+                Conversation.Messages.Add(
+                    Message.CreateError("No AI provider is configured. Open Settings to sign in."));
+                OnPropertyChanged(nameof(HasItem));
+            }
+        }
+        finally
+        {
+            IsInitializing = false;
+            SendCommand.NotifyCanExecuteChanged();
+        }
     }
 
     private void BuildKernel()
@@ -130,7 +176,12 @@ public partial class WPFChatPaneViewModel : ObservableObject
         }
     }
 
-    private bool CanSend() => !string.IsNullOrEmpty(Question);
+    private bool CanSend() => !string.IsNullOrEmpty(Question) && !IsInitializing;
+
+    partial void OnIsInitializingChanged(bool value)
+    {
+        SendCommand.NotifyCanExecuteChanged();
+    }
 
     protected virtual async Task SendAsync(CancellationToken cancellationToken)
     {

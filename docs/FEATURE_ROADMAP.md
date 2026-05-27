@@ -139,7 +139,7 @@ breaks in the same way.
 - [x] `InsertComponent(path, x, y, z, configurationName?)` /
   `InsertComponentFromOpenDoc`
 - [x] `FixSelectedComponent`, `FloatSelectedComponent` (selection-based)
-- [ ] `MoveComponent`, `DeleteComponent`
+- [x] `MoveComponent(name, dx, dy, dz)`, `DeleteComponent(name)`
 - [x] **Mates** — `AddMate(type, distance?, angle?, alignment?, flip?)`:
   Coincident, Concentric, Parallel, Perpendicular, Tangent, Distance,
   Angle, Lock, Symmetric, Width (pre-select two refs)
@@ -147,14 +147,14 @@ breaks in the same way.
 - [ ] `ReplaceComponent(old, newPath)`
 - [x] `SuppressSelectedComponent`, `ResolveSelectedComponent`
 - [x] `ListComponents(topLevelOnly)`
-- [ ] `ListMates()`, `GetBoM()` — flat & indented
+- [x] `ListMates()`, `GetBoM(topLevelOnly)` — flat BoM with quantities
 - [ ] `ExplodedView(steps[])`
 - [x] **Interference detection**: `RunInterferenceDetection()` →
   component pairs + volumes. This is half of *“check accuracy”* in
   assemblies.
 - [ ] `MeasureClearance(comp1, comp2)`
 - [x] `ForceRebuild`
-- [ ] `EvaluateMateErrors()`
+- [x] `EvaluateMateErrors()`
 
 ---
 

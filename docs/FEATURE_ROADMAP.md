@@ -66,12 +66,14 @@ breaks in the same way.
 
 ### 2.1 Sketch entities
 
-- [ ] `CreateLine(x1,y1,x2,y2)` / `CreatePolyline(points[])`
-- [ ] `CreateRectangle(x,y,w,h)` — corner + center variants
-- [ ] `CreateArc(...)` — 3-point and center+radius+sweep
+- [x] `CreateLine(x1,y1,x2,y2)` / `CreatePolyline(points[])`
+- [x] `CreateRectangle(x,y,w,h)` — corner + center variants
+- [x] `CreateArc(...)` — 3-point and center+radius+sweep
 - [ ] `CreateSlot(...)`, `CreateEllipse(...)`, `CreatePoint(...)`
+- [x] `CreatePolygon(...)` (bonus — was not in original plan)
 - [ ] `SetConstructionGeometry(flag)`
-- [ ] `OffsetEntities(distance)`, `TrimEntities`, `MirrorEntities(axis)`,
+- [x] `SketchOffset(distance)` (offsets the current selection / chain)
+- [ ] `TrimEntities`, `MirrorEntities(axis)`,
   `LinearSketchPattern`, `CircularSketchPattern`
 - [ ] `AddRelation(entities[], type)` — Horizontal, Vertical, Coincident,
   Equal, Tangent, Perpendicular, Parallel, Concentric
@@ -79,27 +81,29 @@ breaks in the same way.
 
 ### 2.2 Reference geometry
 
-- [ ] `CreatePlane(reference, offset)`
+- [x] **P1.2 — Reference plane (offset)** via
+  `CreateOffsetPlane(sourcePlane, distance)`. Axis / coord-system / point
+  still pending.
 - [ ] `CreateAxis(...)`, `CreateCoordinateSystem(...)`, `CreatePoint(...)`
 
 ### 2.3 Features — boss / cut
 
-- [ ] `Extrude(sketch, depth, direction, draft, thinWall)` and
+- [x] `Extrude(sketch, depth, direction, draft, thinWall)` and
   `ExtrudeCut(...)`
-- [ ] `Revolve(sketch, axis, angle)` / `RevolveCut(...)`
+- [x] `Revolve(sketch, axis, angle)` / `RevolveCut(...)`
 - [ ] `Sweep(profile, path, options)` / `SweepCut`
 - [ ] `Loft(profiles[], guideCurves[], options)` / `LoftCut`
 - [ ] `BoundarySurface(...)` (advanced shapes)
 
 ### 2.4 Modify features
 
-- [ ] `Fillet(edges[], radius, type)`, `Chamfer(edges[], distance, angle)`
+- [x] `Fillet(edges[], radius, type)`, `Chamfer(edges[], distance, angle)`
 - [ ] `Shell(faces[], thickness)`
 - [ ] `Draft(faces[], angle, neutralPlane)`
 - [ ] `Hole` / `HoleWizard(spec, points[])` — biggest single productivity
   win
 - [ ] `Thread(face, spec)`
-- [ ] `LinearPattern`, `CircularPattern`, `MirrorFeature`
+- [x] `LinearPattern`, `CircularPattern`, `MirrorFeature`
 
 ### 2.5 Body / surfacing
 
@@ -116,8 +120,8 @@ breaks in the same way.
 
 ### 2.7 Materials & mass
 
-- [ ] `SetMaterial(name)`
-- [ ] `GetMassProperties()` → mass, COG, volume, surface area, principal
+- [x] `SetMaterial(name)`
+- [x] `GetMassProperties()` → mass, COG, volume, surface area, principal
   axes
 
 ---

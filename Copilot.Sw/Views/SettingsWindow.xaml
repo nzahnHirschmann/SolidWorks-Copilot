@@ -32,7 +32,85 @@
             <RowDefinition Height="50" />
         </Grid.RowDefinitions>
         <TabControl>
-            <TabItem Header="Server">
+            <TabItem Header="GitHub Copilot">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock
+                        FontSize="18"
+                        FontWeight="SemiBold"
+                        Text="Sign in with GitHub Models" />
+
+                    <TextBlock
+                        Grid.Row="1"
+                        Margin="0,4,0,12"
+                        TextWrapping="Wrap"
+                        Text="Connect to GitHub's hosted Copilot / GitHub Models catalog. Generate a token, paste it below, pick a model and click Sign in." />
+
+                    <ui:Button
+                        Grid.Row="2"
+                        Margin="0,0,0,12"
+                        HorizontalAlignment="Left"
+                        Appearance="Secondary"
+                        Command="{Binding OpenGitHubTokenPageCommand}"
+                        Content="1. Get a token on GitHub…"
+                        Icon="Link24" />
+
+                    <TextBlock
+                        Grid.Row="3"
+                        Margin="0,4,0,4"
+                        FontWeight="SemiBold"
+                        Text="2. Paste GitHub token" />
+                    <ui:TextBox
+                        Grid.Row="4"
+                        Margin="0,0,0,8"
+                        PlaceholderText="ghp_… or github_pat_…"
+                        Text="{Binding GitHubToken, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <Grid Grid.Row="5" Margin="0,4,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            Margin="0,0,8,0"
+                            FontWeight="SemiBold"
+                            Text="3. Model:" />
+                        <ComboBox
+                            Grid.Column="1"
+                            IsEditable="True"
+                            ItemsSource="{Binding GitHubModelPresets}"
+                            Text="{Binding GitHubModel, UpdateSourceTrigger=PropertyChanged}" />
+                    </Grid>
+
+                    <StackPanel
+                        Grid.Row="6"
+                        Margin="0,8,0,8"
+                        Orientation="Horizontal">
+                        <ui:Button
+                            Appearance="Primary"
+                            Command="{Binding SignInWithGitHubCommand}"
+                            Content="Sign in"
+                            Icon="Checkmark28" />
+                        <TextBlock
+                            Margin="12,0,0,0"
+                            VerticalAlignment="Center"
+                            Text="{Binding GitHubStatus}"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Advanced (OpenAI / Azure)">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="40" />

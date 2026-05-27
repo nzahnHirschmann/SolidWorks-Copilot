@@ -1,12 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net7.0-windows;net48</TargetFrameworks>
+    <TargetFramework>net48</TargetFramework>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <LangVersion>latest</LangVersion>
-    <EnableComHosting>true</EnableComHosting>
+    <!-- Required for non-string (Bitmap) resources in Resources.resx when
+         building under newer .NET SDKs that no longer use BinaryFormatter. -->
+    <GenerateResourceUsePreserializedResources>true</GenerateResourceUsePreserializedResources>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,6 +25,7 @@
     <PackageReference Include="Microsoft.SemanticKernel" Version="0.13.277.1-preview" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.1724-prerelease" />
     <PackageReference Include="MvvmDialogs" Version="9.1.0" />
+    <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
     <PackageReference Include="WPF-UI" Version="3.0.0-preview.1" />
     <PackageReference Include="Xarial.XCad.SolidWorks" Version="0.8.0-beta.4627" />
   </ItemGroup>

@@ -235,6 +235,80 @@ public sealed class AssemblyExtrasSkill : SldWorksSkillContext
         });
     }
 
+    // -------- Replace component --------
+
+    [KernelFunction(nameof(ReplaceComponent))]
+    [Description("Replace the currently-selected component with the part " +
+        "or assembly at 'newPath'. Pre-select one component instance " +
+        "first. 'replaceAllInstances' replaces every occurrence of the " +
+        "same model; 'reAttachMates' tries to re-bind existing mates to " +
+        "the new geometry. 'configurationName' picks a non-default config.")]
+    public string ReplaceComponent(string newPath, bool replaceAllInstances = true, bool reAttachMates = true, string configurationName = "")
+    {
+        if (string.IsNullOrWhiteSpace(newPath))
+        {
+            throw new ArgumentException("newPath is required.", nameof(newPath));
+        }
+        if (!File.Exists(newPath))
+        {
+            throw new InvalidOperationException($"File not found: {newPath}");
+        }
+        var assy = RequireAssembly();
+        var doc = (IModelDoc2)assy;
+        var sm = doc.SelectionManager as ISelectionMgr
+            ?? throw new InvalidOperationException("SelectionManager unavailable.");
+        if (sm.GetSelectedObjectCount2(-1) < 1)
+        {
+            throw new InvalidOperationException(
+                "Select the component instance to replace first.");
+        }
+
+        if (!assy.ReplaceComponents2(newPath, configurationName ?? string.Empty,
+                replaceAllInstances, 0, reAttachMates))
+        {
+            throw new InvalidOperationException(
+                $"ReplaceComponents2 failed for '{newPath}'.");
+        }
+        return $"Replaced component with '{Path.GetFileName(newPath)}' " +
+            $"(allInstances={replaceAllInstances}, reAttachMates={reAttachMates}).";
+    }
+
+    // -------- Exploded views --------
+
+    [KernelFunction(nameof(ListExplodedViews))]
+    [Description("Return JSON list of exploded view names defined on the " +
+        "active assembly's current configuration.")]
+    public string ListExplodedViews()
+    {
+        var assy = RequireAssembly();
+        var names = assy.GetExplodedViewNames2(string.Empty) as string[] ?? Array.Empty<string>();
+        return JsonSerializer.Serialize(new
+        {
+            assembly = ((IModelDoc2)assy).GetTitle(),
+            count = names.Length,
+            names,
+        });
+    }
+
+    [KernelFunction(nameof(ShowExplodedView))]
+    [Description("Show or collapse a named exploded view on the active " +
+        "assembly. Pass 'show=false' to collapse. Use ListExplodedViews " +
+        "to discover valid names.")]
+    public string ShowExplodedView(string name, bool show = true)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("name is required.", nameof(name));
+        }
+        var assy = RequireAssembly();
+        if (!assy.ShowExploded2(show, name))
+        {
+            throw new InvalidOperationException(
+                $"ShowExploded2 failed for '{name}'. Verify the view exists in the active configuration.");
+        }
+        return show ? $"Exploded '{name}'." : $"Collapsed '{name}'.";
+    }
+
     // -------- Helpers --------
 
     private IAssemblyDoc RequireAssembly()

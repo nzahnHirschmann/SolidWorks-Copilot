@@ -144,10 +144,13 @@ breaks in the same way.
   Coincident, Concentric, Parallel, Perpendicular, Tangent, Distance,
   Angle, Lock, Symmetric, Width (pre-select two refs)
 - [ ] Remaining mate types: Cam, Gear, Slot, Path, Hinge, Screw
-- [ ] `ReplaceComponent(old, newPath)`
+- [x] `ReplaceComponent(newPath, replaceAllInstances, reAttachMates,
+  configurationName)` — pre-select component instance
 - [x] `SuppressSelectedComponent`, `ResolveSelectedComponent`
 - [x] `ListComponents(topLevelOnly)`
 - [x] `ListMates()`, `GetBoM(topLevelOnly)` — flat BoM with quantities
+- [x] `ListExplodedViews()`, `ShowExplodedView(name, show)` — toggle
+  pre-defined exploded views (configuration-scoped)
 - [ ] `ExplodedView(steps[])`
 - [x] **Interference detection**: `RunInterferenceDetection()` →
   component pairs + volumes. This is half of *“check accuracy”* in
@@ -242,14 +245,16 @@ to *read* it.
   suppression state, children
 - [x] `GetSelectedEntity()` →
   `{ type, typeId, name, featureType }`
-- [ ] `GetSketchEntities(sketchName)` — segments + dimensions +
-  constraints
-- [ ] `GetReferenceGeometry()` — planes, axes, origins
+- [x] `GetSketchEntities(sketchName)` — segments (type/name/length/
+  construction) + points (mm) for the active or named sketch
+- [x] `GetReferenceGeometry()` — lists RefPlane / RefAxis / RefPoint /
+  CoordSys features
 - [x] `GetCustomProperties()` / `SetCustomProperty(name, value, type)`
 - [x] `MeasureSelection()` — length / distance / angle / area / radius /
   delta XYZ from the current 1–2 selection (covers `MeasureDistance` and
   `MeasureAngle`)
-- [ ] `MeasureMinRadius(face)`
+- [x] `MeasureMinRadius()` — pre-select a face; uses
+  `ISurface.FindMinimumRadius`, returns radius (mm) + 3D location
 - [x] `GetBoundingBox()` — axis-aligned, part docs
 - [x] `Screenshot(path, width, height)` → saves PNG/BMP/JPG and returns
   the path. Lets a vision-capable model literally *see* the part.

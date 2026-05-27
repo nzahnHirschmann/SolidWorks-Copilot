@@ -284,4 +284,179 @@ public sealed class IntrospectionSkill : SldWorksSkillContext
         }
         return path;
     }
+
+    // -------- Sketch entities --------
+
+    [KernelFunction(nameof(GetSketchEntities))]
+    [Description("Return JSON describing every segment and point of a " +
+        "sketch: type (LINE/ARC/ELLIPSE/SPLINE/POINT), name, construction " +
+        "flag, length (mm) and endpoints. Pass 'sketchName' to inspect a " +
+        "named sketch; omit to use the currently-edited sketch.")]
+    public string GetSketchEntities(string sketchName = "")
+    {
+        var doc = ActiveSwDoc
+            ?? throw new InvalidOperationException("No active SolidWorks document.");
+
+        ISketch? sketch;
+        if (string.IsNullOrWhiteSpace(sketchName))
+        {
+            sketch = doc.SketchManager?.ActiveSketch as ISketch
+                ?? throw new InvalidOperationException(
+                    "No active sketch. Pass 'sketchName' or edit a sketch first.");
+        }
+        else
+        {
+            if (!doc.Extension.SelectByID2(sketchName, "SKETCH", 0, 0, 0, false, 0, null, 0))
+            {
+                throw new InvalidOperationException(
+                    $"Sketch '{sketchName}' not found.");
+            }
+            var sm = doc.SelectionManager as ISelectionMgr
+                ?? throw new InvalidOperationException("SelectionManager unavailable.");
+            var feat = sm.GetSelectedObject6(1, -1) as IFeature
+                ?? throw new InvalidOperationException(
+                    $"'{sketchName}' is not a sketch feature.");
+            sketch = feat.GetSpecificFeature2() as ISketch
+                ?? throw new InvalidOperationException(
+                    $"'{sketchName}' does not resolve to a sketch.");
+        }
+
+        var segments = new List<object>();
+        var segs = sketch.GetSketchSegments() as object[] ?? Array.Empty<object>();
+        foreach (var o in segs)
+        {
+            if (o is not ISketchSegment seg) { continue; }
+            var typeName = ((swSketchSegments_e)seg.GetType()).ToString();
+            segments.Add(new
+            {
+                type = typeName,
+                name = seg.GetName(),
+                construction = seg.ConstructionGeometry,
+                lengthMm = Math.Round(seg.GetLength() * 1000, 4),
+            });
+        }
+
+        var points = new List<object>();
+        var pts = sketch.GetSketchPoints2() as object[] ?? Array.Empty<object>();
+        foreach (var o in pts)
+        {
+            if (o is not ISketchPoint p) { continue; }
+            points.Add(new
+            {
+                xMm = Math.Round(p.X * 1000, 4),
+                yMm = Math.Round(p.Y * 1000, 4),
+                zMm = Math.Round(p.Z * 1000, 4),
+            });
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            sketch = (sketch as IFeature)?.Name,
+            is3D = sketch.Is3D(),
+            segmentCount = segments.Count,
+            pointCount = points.Count,
+            segments,
+            points,
+        });
+    }
+
+    // -------- Reference geometry --------
+
+    [KernelFunction(nameof(GetReferenceGeometry))]
+    [Description("List reference planes, axes, coordinate systems and " +
+        "reference points in the active part or assembly. Returns JSON " +
+        "{ planes[], axes[], points[], coordinateSystems[] } with each " +
+        "feature's name and suppression state.")]
+    public string GetReferenceGeometry()
+    {
+        var doc = ActiveSwDoc
+            ?? throw new InvalidOperationException("No active SolidWorks document.");
+
+        var planes = new List<object>();
+        var axes = new List<object>();
+        var points = new List<object>();
+        var csys = new List<object>();
+
+        for (var f = doc.FirstFeature() as IFeature; f is not null; f = f.GetNextFeature() as IFeature)
+        {
+            var t = f.GetTypeName2();
+            var entry = new { name = f.Name, suppressed = f.IsSuppressed() };
+            switch (t)
+            {
+                case "RefPlane":
+                    planes.Add(entry);
+                    break;
+                case "RefAxis":
+                    axes.Add(entry);
+                    break;
+                case "RefPoint":
+                    points.Add(entry);
+                    break;
+                case "CoordSys":
+                    csys.Add(entry);
+                    break;
+            }
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            doc = doc.GetTitle(),
+            planes,
+            axes,
+            points,
+            coordinateSystems = csys,
+        });
+    }
+
+    // -------- Minimum radius on a face --------
+
+    [KernelFunction(nameof(MeasureMinRadius))]
+    [Description("Find the minimum radius of curvature of the currently " +
+        "selected face (pre-select one face). Returns JSON " +
+        "{ minRadiusMm, locationMm:[x,y,z] }. Useful for tool-access and " +
+        "machining-feasibility checks. Planar faces report an infinite " +
+        "radius and will fail.")]
+    public string MeasureMinRadius()
+    {
+        var doc = ActiveSwDoc
+            ?? throw new InvalidOperationException("No active SolidWorks document.");
+        var sm = doc.SelectionManager as ISelectionMgr
+            ?? throw new InvalidOperationException("SelectionManager unavailable.");
+        if (sm.GetSelectedObjectCount2(-1) < 1)
+        {
+            throw new InvalidOperationException("Select one face first.");
+        }
+        var face = sm.GetSelectedObject6(1, -1) as IFace2
+            ?? throw new InvalidOperationException("Selection 1 must be a face.");
+
+        var surf = face.GetSurface() as ISurface
+            ?? throw new InvalidOperationException("Face has no surface.");
+
+        int count = 0;
+        object radiusObj = null!;
+        object locationObj = null!;
+        object uvObj = null!;
+        if (!surf.FindMinimumRadius(null, null, ref count, ref radiusObj,
+                ref locationObj, ref uvObj) || count < 1)
+        {
+            throw new InvalidOperationException(
+                "FindMinimumRadius returned no result. The face may be planar.");
+        }
+
+        var radii = radiusObj as double[] ?? Array.Empty<double>();
+        var locs = locationObj as double[] ?? Array.Empty<double>();
+        if (radii.Length == 0)
+        {
+            throw new InvalidOperationException("No radius values returned.");
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            minRadiusMm = Math.Round(radii[0] * 1000, 4),
+            locationMm = locs.Length >= 3
+                ? new[] { Math.Round(locs[0] * 1000, 4), Math.Round(locs[1] * 1000, 4), Math.Round(locs[2] * 1000, 4) }
+                : Array.Empty<double>(),
+            radiiCount = count,
+        });
+    }
 }

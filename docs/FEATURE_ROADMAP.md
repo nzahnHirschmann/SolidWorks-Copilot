@@ -217,18 +217,17 @@ Implement as discrete read-only skills, then aggregate behind one
 - [x] **Reference checks** — broken view references (model moved/
   renamed) surfaced via `missingReferences`.
 - [x] **Sheet/view inventory** — `ListSheets()`, `ListDrawingViews()`.
-- [ ] **Missing dimensions** — walk every visible edge/feature per view;
-  flag any without a driving dimension and no implied symmetry.
-  `CheckMissingDimensions(view)` → `[{ view, edgeId, length,
-  suggestedDim }]`.
-- [ ] **GD&T completeness** — every datum referenced in a control frame
-  must exist; every critical face on the part should carry at least one
-  tolerance. `CheckGdtConsistency()`.
-- [ ] **Tolerance sanity** — dimensions with no tolerance, or with
-  tolerance ranges that violate ISO 2768-fine, are flagged.
-- [ ] **BoM vs assembly diff** — compare drawn BoM rows vs
-  `ListComponents()` of the linked assembly. Flag extra/missing items,
-  qty mismatch.
+- [x] **Missing dimensions** — `CheckMissingDimensions(minRatio)` flags
+  views with zero dimensions or dim/edge ratio below the threshold.
+- [x] **GD&T completeness** — `CheckGdtConsistency()` cross-checks
+  defined datum-feature letters against datum letters referenced inside
+  GTol frames; reports missing definitions.
+- [x] **Tolerance sanity** — `CheckToleranceSanity()` walks every
+  display dimension and reports counts by tolerance type plus the list
+  of untoleranced dimensions.
+- [x] **BoM vs assembly diff** — `CheckBomVsAssembly()` compares the
+  first BoM table on the drawing to the live `ListComponents()` of its
+  linked (open) assembly, flagging extra / missing / qty-mismatch rows.
 - [ ] **Standards compliance** — wrap SolidWorks Design Checker
   (`swDesignChecker`) and surface the results in chat.
 - [ ] **Spell check** — every annotation through

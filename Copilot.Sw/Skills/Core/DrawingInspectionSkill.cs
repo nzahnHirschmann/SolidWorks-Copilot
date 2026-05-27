@@ -123,6 +123,264 @@ public sealed class DrawingInspectionSkill : SldWorksSkillContext
         });
     }
 
+    [KernelFunction(nameof(CheckMissingDimensions))]
+    [Description("For every view on the active drawing, compare the count " +
+        "of dimensions to the count of visible edges and flag views with " +
+        "zero dimensions, or a dim-to-edge ratio below 'minRatio' " +
+        "(default 0.3). Section / detail views often legitimately have " +
+        "few dimensions; treat findings as guidance, not as hard errors.")]
+    public string CheckMissingDimensions(double minRatio = 0.3)
+    {
+        var dwg = RequireDrawing();
+        var findings = new List<object>();
+        int viewCount = 0;
+        foreach (var (sheetName, view) in EnumerateViews(dwg))
+        {
+            viewCount++;
+            int dims = view.GetDisplayDimensionCount();
+            int edges = view.GetVisibleEntityCount2(null, (int)swSelectType_e.swSelEDGES);
+            double ratio = edges > 0 ? (double)dims / edges : 0;
+            if (dims == 0 && edges > 0)
+            {
+                findings.Add(new
+                {
+                    view = view.GetName2(),
+                    sheet = sheetName,
+                    dimensions = dims,
+                    visibleEdges = edges,
+                    ratio,
+                    severity = "missing",
+                });
+            }
+            else if (edges > 0 && ratio < minRatio)
+            {
+                findings.Add(new
+                {
+                    view = view.GetName2(),
+                    sheet = sheetName,
+                    dimensions = dims,
+                    visibleEdges = edges,
+                    ratio = Math.Round(ratio, 3),
+                    severity = "sparse",
+                });
+            }
+        }
+        return JsonSerializer.Serialize(new { viewCount, threshold = minRatio, findings });
+    }
+
+    [KernelFunction(nameof(CheckToleranceSanity))]
+    [Description("Walk every display dimension on the active drawing and " +
+        "report tolerance coverage: counts by tolerance type (NONE, " +
+        "BASIC, BILAT, LIMIT, SYMMETRIC, MIN, MAX, FIT, …) plus a " +
+        "'untoleranced' list of dimensions that carry no tolerance.")]
+    public string CheckToleranceSanity()
+    {
+        var dwg = RequireDrawing();
+        var counts = new Dictionary<string, int>();
+        var untoleranced = new List<object>();
+        int total = 0;
+        foreach (var (sheetName, view) in EnumerateViews(dwg))
+        {
+            int n = view.GetDisplayDimensionCount();
+            var dds = view.GetDisplayDimensions() as object[] ?? Array.Empty<object>();
+            for (int i = 0; i < dds.Length; i++)
+            {
+                var dd = dds[i] as IDisplayDimension;
+                var dim = dd?.GetDimension() as IDimension;
+                if (dim is null)
+                {
+                    continue;
+                }
+                total++;
+                var tol = (swTolType_e)dim.GetToleranceType();
+                var key = tol.ToString();
+                counts[key] = counts.TryGetValue(key, out var c) ? c + 1 : 1;
+                if (tol == swTolType_e.swTolNONE)
+                {
+                    untoleranced.Add(new
+                    {
+                        view = view.GetName2(),
+                        sheet = sheetName,
+                        name = dim.FullName,
+                        valueMm = Math.Round(dim.GetSystemValue2(string.Empty) * 1000, 4),
+                    });
+                }
+            }
+        }
+        return JsonSerializer.Serialize(new
+        {
+            totalDimensions = total,
+            byToleranceType = counts,
+            untolerancedCount = untoleranced.Count,
+            untoleranced,
+        });
+    }
+
+    [KernelFunction(nameof(CheckGdtConsistency))]
+    [Description("Cross-check GD&T on the active drawing: every datum " +
+        "letter referenced inside a control frame must have a matching " +
+        "datum-feature symbol. Returns JSON with the set of defined " +
+        "datum letters, the set of referenced letters, and any " +
+        "referenced letters that are missing.")]
+    public string CheckGdtConsistency()
+    {
+        var dwg = RequireDrawing();
+        var definedDatums = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var referencedDatums = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        int gtolCount = 0;
+        int datumTagCount = 0;
+
+        foreach (var (_, view) in EnumerateViews(dwg))
+        {
+            var ann = view.GetFirstAnnotation3() as IAnnotation;
+            int safety = 0;
+            while (ann is not null && safety++ < 10000)
+            {
+                var t = (swAnnotationType_e)ann.GetType();
+                if (t == swAnnotationType_e.swDatumTag
+                    && ann.GetSpecificAnnotation() is IDatumTag dt)
+                {
+                    datumTagCount++;
+                    var lbl = dt.GetLabel();
+                    if (!string.IsNullOrWhiteSpace(lbl))
+                    {
+                        definedDatums.Add(lbl.Trim());
+                    }
+                }
+                else if (t == swAnnotationType_e.swGTol
+                    && ann.GetSpecificAnnotation() is IGtol gtol)
+                {
+                    gtolCount++;
+                    var frames = gtol.GetFrameCount();
+                    for (short f = 0; f < frames; f++)
+                    {
+                        if (gtol.GetFrameValues(f) is string[] vals && vals.Length >= 5)
+                        {
+                            for (int k = 2; k <= 4; k++)
+                            {
+                                var d = vals[k];
+                                if (!string.IsNullOrWhiteSpace(d))
+                                {
+                                    referencedDatums.Add(d.Trim());
+                                }
+                            }
+                        }
+                    }
+                }
+                ann = ann.GetNext3() as IAnnotation;
+            }
+        }
+
+        var missing = referencedDatums.Except(definedDatums, StringComparer.OrdinalIgnoreCase).ToList();
+        return JsonSerializer.Serialize(new
+        {
+            datumTagCount,
+            gtolCount,
+            definedDatums = definedDatums.OrderBy(s => s).ToList(),
+            referencedDatums = referencedDatums.OrderBy(s => s).ToList(),
+            missingDatumDefinitions = missing,
+        });
+    }
+
+    [KernelFunction(nameof(CheckBomVsAssembly))]
+    [Description("Compare the first BoM table on the active drawing to " +
+        "the live component list of its linked assembly (must be open). " +
+        "Returns JSON with extra-in-BoM, missing-from-BoM, and quantity " +
+        "mismatches keyed by file name. The linked assembly must " +
+        "currently be open in SolidWorks for the comparison to run.")]
+    public string CheckBomVsAssembly()
+    {
+        var dwg = RequireDrawing();
+        var boms = EnumerateBomTables(dwg).ToList();
+        if (boms.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "No BoM table found on the active drawing. Insert a BoM first.");
+        }
+        var bom = boms[0];
+        var bomFeature = bom.BomFeature;
+        var asmPath = bomFeature?.GetReferencedModelName() ?? string.Empty;
+        var table = (ITableAnnotation)bom;
+
+        var bomRows = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 1; i < table.RowCount; i++)
+        {
+            var comps = bom.GetComponents2(i, string.Empty) as object[] ?? Array.Empty<object>();
+            if (comps.Length == 0)
+            {
+                continue;
+            }
+            string? path = null;
+            foreach (var co in comps)
+            {
+                if (co is IComponent2 c)
+                {
+                    path = c.GetPathName();
+                    if (!string.IsNullOrWhiteSpace(path))
+                    {
+                        break;
+                    }
+                }
+            }
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                continue;
+            }
+            var key = Path.GetFileNameWithoutExtension(path);
+            bomRows[key] = (bomRows.TryGetValue(key, out var v) ? v : 0) + comps.Length;
+        }
+
+        var asmRows = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var asm = string.IsNullOrEmpty(asmPath) ? null : Sw?.GetOpenDocumentByName(asmPath) as IAssemblyDoc;
+        if (asm is not null)
+        {
+            var comps = asm.GetComponents(false) as object[] ?? Array.Empty<object>();
+            foreach (var co in comps)
+            {
+                if (co is not IComponent2 c)
+                {
+                    continue;
+                }
+                if (c.IsSuppressed())
+                {
+                    continue;
+                }
+                var p = c.GetPathName();
+                if (string.IsNullOrWhiteSpace(p))
+                {
+                    continue;
+                }
+                var key = Path.GetFileNameWithoutExtension(p);
+                asmRows[key] = (asmRows.TryGetValue(key, out var v) ? v : 0) + 1;
+            }
+        }
+
+        var extraInBom = bomRows
+            .Where(kv => !asmRows.ContainsKey(kv.Key))
+            .Select(kv => new { name = kv.Key, bomQty = kv.Value })
+            .ToList();
+        var missingFromBom = asmRows
+            .Where(kv => !bomRows.ContainsKey(kv.Key))
+            .Select(kv => new { name = kv.Key, asmQty = kv.Value })
+            .ToList();
+        var qtyMismatch = bomRows
+            .Where(kv => asmRows.TryGetValue(kv.Key, out var av) && av != kv.Value)
+            .Select(kv => new { name = kv.Key, bomQty = kv.Value, asmQty = asmRows[kv.Key] })
+            .ToList();
+
+        return JsonSerializer.Serialize(new
+        {
+            bomTablesFound = boms.Count,
+            assembly = asmPath,
+            assemblyLoaded = asm is not null,
+            bomUniqueParts = bomRows.Count,
+            assemblyUniqueParts = asmRows.Count,
+            extraInBom,
+            missingFromBom,
+            qtyMismatch,
+        });
+    }
+
     [KernelFunction(nameof(InspectDrawing))]
     [Description("Run a full accuracy/QA report on the active drawing. " +
         "Aggregates sheet/view inventory, view scale consistency, title " +
@@ -304,10 +562,49 @@ public sealed class DrawingInspectionSkill : SldWorksSkillContext
             ann = ann.GetNext3() as IAnnotation;
             if (n > 5000)
             {
-                break; // safety
+                break;
             }
         }
         return n;
+    }
+
+    private static IEnumerable<(string SheetName, IView View)> EnumerateViews(IDrawingDoc dwg)
+    {
+        var sheetNames = dwg.GetSheetNames() as string[] ?? Array.Empty<string>();
+        foreach (var sn in sheetNames)
+        {
+            var sheet = (ISheet)dwg.get_Sheet(sn);
+            var views = sheet.GetViews() as object[] ?? Array.Empty<object>();
+            for (int i = 0; i < views.Length; i++)
+            {
+                if (i == 0)
+                {
+                    continue; // first entry is the sheet itself
+                }
+                if (views[i] is IView v)
+                {
+                    yield return (sn, v);
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<IBomTableAnnotation> EnumerateBomTables(IDrawingDoc dwg)
+    {
+        foreach (var (_, v) in EnumerateViews(dwg))
+        {
+            var ann = v.GetFirstAnnotation3() as IAnnotation;
+            int safety = 0;
+            while (ann is not null && safety++ < 5000)
+            {
+                if ((swAnnotationType_e)ann.GetType() == swAnnotationType_e.swTableAnnotation
+                    && ann.GetSpecificAnnotation() is IBomTableAnnotation bom)
+                {
+                    yield return bom;
+                }
+                ann = ann.GetNext3() as IAnnotation;
+            }
+        }
     }
 
     private static void CollectFeatureError(IFeature feat, List<object> rows)

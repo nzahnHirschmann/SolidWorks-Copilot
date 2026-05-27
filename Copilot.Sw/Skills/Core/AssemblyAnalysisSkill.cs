@@ -87,6 +87,42 @@ public sealed class AssemblyAnalysisSkill : SldWorksSkillContext
         doc.ForceRebuild3(false);
     }
 
+    [KernelFunction(nameof(MeasureClearance))]
+    [Description("Measure the clearance / distance between the two " +
+        "currently selected entities (faces, edges, vertices, or " +
+        "components). Returns JSON with distance, centerDistance, " +
+        "normalDistance, deltaX/Y/Z (all in millimetres), plus " +
+        "isParallel / isPerpendicular / isIntersecting flags.")]
+    public string MeasureClearance()
+    {
+        var doc = ActiveSwDoc
+            ?? throw new InvalidOperationException("No active SolidWorks document.");
+        var measure = doc.Extension.CreateMeasure() as IMeasure
+            ?? throw new InvalidOperationException("Could not create measure tool.");
+        if (!measure.Calculate(null))
+        {
+            throw new InvalidOperationException(
+                "MeasureClearance failed. Pre-select two entities (faces, " +
+                "edges, vertices, or components) before calling.");
+        }
+
+        // Native units are metres; convert to mm for the LLM.
+        const double m2mm = 1000.0;
+        var result = new
+        {
+            distanceMm = measure.Distance * m2mm,
+            centerDistanceMm = measure.CenterDistance * m2mm,
+            normalDistanceMm = measure.NormalDistance * m2mm,
+            deltaXMm = measure.DeltaX * m2mm,
+            deltaYMm = measure.DeltaY * m2mm,
+            deltaZMm = measure.DeltaZ * m2mm,
+            isParallel = measure.IsParallel,
+            isPerpendicular = measure.IsPerpendicular,
+            isIntersecting = measure.IsIntersect,
+        };
+        return JsonSerializer.Serialize(result);
+    }
+
     private IAssemblyDoc RequireAssembly()
     {
         var doc = ActiveSwDoc

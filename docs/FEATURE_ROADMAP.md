@@ -163,7 +163,10 @@ breaks in the same way.
 - [x] **Interference detection**: `RunInterferenceDetection()` →
   component pairs + volumes. This is half of *“check accuracy”* in
   assemblies.
-- [ ] `MeasureClearance(comp1, comp2)`
+- [x] `MeasureClearance()` — wraps `IModelDocExtension.CreateMeasure`
+  on the two pre-selected entities (faces / edges / vertices /
+  components); returns distance, centerDistance, normalDistance,
+  delta XYZ (mm), plus isParallel / isPerpendicular / isIntersecting
 - [x] `ForceRebuild`
 - [x] `EvaluateMateErrors()`
 
@@ -199,7 +202,9 @@ breaks in the same way.
 
 ### 4.2 Annotations & GD&T
 
-- [ ] `AddDimension(edge|distance, value?)` — driven + driving
+- [x] `AddDimension(x, y, value?)` — driving (sketch) or driven
+  (drawing) dimension on the pre-selected entity / pair via
+  `IModelDoc2.AddDimension2`; same function works in both doc types
 - [x] `AddDatumFeature(letter)` — pre-select face/edge
 - [x] `AddGeometricTolerance(symbol, tolerance, datumA, datumB, datumC)`
   — pre-select face/edge; symbols POSITION, FLATNESS, STRAIGHTNESS,

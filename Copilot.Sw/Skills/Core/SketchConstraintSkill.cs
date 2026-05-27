@@ -46,10 +46,11 @@ public sealed class SketchConstraintSkill : SldWorksSkillContext
     }
 
     [KernelFunction(nameof(AddDimension))]
-    [Description("Place a driving dimension at the given screen-space " +
-        "location for the currently selected entity (or pair of " +
-        "entities). value is in the document's length unit; pass null/0 " +
-        "to keep the current geometry.")]
+    [Description("Place a driving dimension (sketch) or driven dimension " +
+        "(drawing) at the given screen-space location for the currently " +
+        "selected entity (or pair of entities). Works in both sketch and " +
+        "drawing documents. value is in the document's length unit; pass " +
+        "null/0 to keep the current geometry.")]
     public string AddDimension(double x, double y, double? value = null, string? unit = null)
     {
         var doc = ActiveSwDoc

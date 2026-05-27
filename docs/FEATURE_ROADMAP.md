@@ -293,8 +293,14 @@ Not new SW APIs — agent-loop features.
   ([SwPlanModel.cs](../Copilot.Sw/Models/SwPlanModel.cs)); wire it back
   into the streaming loop so the model can output a structured plan
   *instead of* (or in addition to) auto-calling.
-- [ ] **Per-step status + rollback** — surface which feature call
-  succeeded/failed; offer *Undo this step*.
+- [x] **Per-step status + rollback** — every native KernelFunction the
+  model invokes is captured by
+  [ToolCallTraceFilter.cs](../Copilot.Sw/Skills/ToolCallTraceFilter.cs)
+  and surfaced under the assistant bubble as a live list of
+  `✓ name (ms)` / `✗ name — error` chips, with arguments on hover.
+  Rollback is delivered by the existing per-turn undo group in
+  [Conversation.cs](../Copilot.Sw/Models/Conversation.cs) — one Ctrl-Z
+  reverts everything the model did this turn.
 - [ ] **Dry-run mode** — run skills against a cloned doc
   (`ISldWorks.OpenDoc6` with `swOpenDocOptions_Silent` + temp copy);
   show before/after screenshots.
@@ -303,11 +309,15 @@ Not new SW APIs — agent-loop features.
 - [ ] **Templates / macros library** — store named procedures (*“flange
   with M6 bolt circle, 6 holes, 80 PCD”*) that the model can invoke as
   one tool call.
-- [ ] **@-mentions in chat** — `@Sketch3`,
-  `@Feature/Boss-Extrude2`, `@Component<2>` resolve to selection at
-  send time. Mirrors VS Code's `#file` UX.
-- [ ] **Slash commands** — `/inspect-drawing`, `/check-mates`,
-  `/mass-props`, `/new-part`. Reuse the existing skills toggle UI.
+- [x] **@-mentions in chat** — `@active`, `@selection`, `@sheet`,
+  `@components`, `@features` are expanded by
+  `Conversation.ExpandAtMentions` to an inline context snapshot the
+  model can act on. Unknown tokens pass through unchanged.
+- [x] **Slash commands** — `/inspect-drawing`, `/check-mates`,
+  `/mass-props`, `/context`, `/screenshot`, `/feature-tree`, `/bom`,
+  `/new-part`, `/new-assembly`, `/new-drawing`, `/rebuild`, `/help`
+  are expanded by `Conversation.ExpandSlashCommand` to canonical
+  natural-language prompts that map cleanly to KernelFunctions.
 
 ---
 

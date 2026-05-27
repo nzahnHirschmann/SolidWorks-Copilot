@@ -45,10 +45,36 @@
                         BorderBrush="#19000000"
                         BorderThickness="1"
                         CornerRadius="12,12,12,2">
-                        <TextBlock
-                            FontSize="13"
-                            Text="{Binding Content}"
-                            TextWrapping="Wrap" />
+                        <StackPanel>
+                            <TextBlock
+                                FontSize="13"
+                                Text="{Binding Content}"
+                                TextWrapping="Wrap" />
+                            <!--  P5: per-step status — every native KernelFunction the model invoked this turn.  -->
+                            <ItemsControl
+                                Margin="0,6,0,0"
+                                ItemsSource="{Binding ToolCalls}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="model:ToolCallEntry">
+                                        <Border
+                                            Margin="0,2,0,0"
+                                            Padding="6,3"
+                                            Background="#F5F7FA"
+                                            BorderBrush="#1F000000"
+                                            BorderThickness="1"
+                                            CornerRadius="4">
+                                            <TextBlock
+                                                FontFamily="Consolas"
+                                                FontSize="11"
+                                                Foreground="#334155"
+                                                Text="{Binding Display}"
+                                                TextWrapping="Wrap"
+                                                ToolTip="{Binding ArgumentsSummary}" />
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
                     </Border>
                 </Grid>
             </DataTemplate>

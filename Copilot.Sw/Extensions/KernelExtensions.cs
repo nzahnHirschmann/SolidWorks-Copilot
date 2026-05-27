@@ -82,6 +82,16 @@ public static class KernelExtensions
             throw new ArgumentNullException(nameof(kernel));
         }
 
+        // Install the tool-call trace filter exactly once per kernel so
+        // every native KernelFunction invocation is captured for the UI.
+        // Conversation.ChatAsync opens an AsyncLocal capture scope per
+        // turn; outside that scope the filter is a no-op, so this is safe
+        // for every other code path (tests, planner, etc.).
+        if (!kernel.FunctionInvocationFilters.Any(f => f is ToolCallTraceFilter))
+        {
+            kernel.FunctionInvocationFilters.Add(new ToolCallTraceFilter());
+        }
+
         var assembly = typeof(SldWorksSkillContext).Assembly;
         var skillTypes = assembly
             .GetTypes()

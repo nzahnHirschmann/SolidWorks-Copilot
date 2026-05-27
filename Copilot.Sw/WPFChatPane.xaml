@@ -185,7 +185,7 @@
                 </Grid>
             </Border>
             <Grid DockPanel.Dock="Top">
-                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer x:Name="ChatScroll" HorizontalScrollBarVisibility="Disabled">
                     <ItemsControl ItemTemplateSelector="{StaticResource MessageTemplateSelector}" ItemsSource="{Binding Conversation.Messages}" />
                 </ScrollViewer>
                 <Button

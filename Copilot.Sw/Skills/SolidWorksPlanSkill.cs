@@ -2,6 +2,7 @@
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -59,5 +60,43 @@ public sealed class SolidWorksPlanSkill
             .ConfigureAwait(false);
 
         return result.Content ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Streaming variant of <see cref="ChatAsync"/>. Yields text chunks as
+    /// they arrive from the model. Tool/function calls are still executed
+    /// (auto), but their results are not echoed to the stream — only
+    /// natural-language text chunks are surfaced.
+    /// </summary>
+    public async IAsyncEnumerable<string> ChatStreamingAsync(
+        string input,
+        string history,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var chat = _kernel.GetRequiredService<IChatCompletionService>();
+
+        var messages = new ChatHistory();
+        messages.AddSystemMessage(SystemPrompt);
+        if (!string.IsNullOrWhiteSpace(history))
+        {
+            messages.AddSystemMessage("Conversation so far:\n" + history);
+        }
+        messages.AddUserMessage(input);
+
+        var settings = new OpenAIPromptExecutionSettings
+        {
+            FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
+            Temperature = 0.2,
+        };
+
+        await foreach (var chunk in chat
+            .GetStreamingChatMessageContentsAsync(messages, settings, _kernel, cancellationToken)
+            .ConfigureAwait(false))
+        {
+            if (!string.IsNullOrEmpty(chunk.Content))
+            {
+                yield return chunk.Content!;
+            }
+        }
     }
 }

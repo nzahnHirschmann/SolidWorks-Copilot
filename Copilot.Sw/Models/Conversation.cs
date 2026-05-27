@@ -5,6 +5,7 @@ using Copilot.Sw.Skills.SketchSkill;
 using Copilot.Sw.Skills.SolidWorksSkill;
 using Microsoft.SemanticKernel;
 using System.Collections.ObjectModel;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -27,29 +28,49 @@ public class Conversation : ObservableObject
 
         EnsureNativePluginsLoaded(kernel);
 
+        // Live-streamed answer message: stays in Messages and its Content
+        // is appended to as chunks arrive (Message.Content is observable
+        // so the UI updates incrementally).
+        var streamed = new AnswerMessage { Content = string.Empty };
+        Messages.Add(streamed);
+        var buffer = new StringBuilder();
+
         try
         {
             var planSkill = new SolidWorksPlanSkill(kernel);
-            var reply = await planSkill
-                .ChatAsync(question, _history, cancellationToken)
-                .ConfigureAwait(false);
+            await foreach (var chunk in planSkill
+                .ChatStreamingAsync(question, _history, cancellationToken)
+                .ConfigureAwait(true))
+            {
+                buffer.Append(chunk);
+                streamed.Content = buffer.ToString();
+            }
 
+            var reply = buffer.ToString();
             AddHistory($"Me: {question}\nAI: {reply}\n");
 
-            // If the plan came back as XML (legacy semantic-function output),
-            // surface it as an action message; otherwise show plain text.
+            // If the final reply turned out to be a legacy XML plan, swap
+            // the streamed AnswerMessage for an ActionAnswerMessage.
             if (SwPlanModel.TryParse(reply, out var planModel))
             {
-                Messages.Add(new ActionAnswerMessage(planModel));
-            }
-            else
-            {
-                Messages.Add(Message.CreateAnswer(reply));
+                var index = Messages.IndexOf(streamed);
+                if (index >= 0)
+                {
+                    Messages[index] = new ActionAnswerMessage(planModel);
+                }
             }
         }
-        catch (System.Exception ex)
+        catch (System.OperationCanceledException)
         {
-            Messages.Add(Message.CreateError(ex.Message));
+            // User pressed Stop — keep whatever was already streamed.
+        }
+        catch (System.Exception)
+        {
+            // Drop the (possibly empty) streamed placeholder and let the
+            // caller render an error (so it can also detect 401 / expired
+            // tokens before deciding what to show).
+            Messages.Remove(streamed);
+            throw;
         }
     }
 

@@ -9,7 +9,8 @@ public abstract partial class Message: ObservableObject
     [JsonIgnore]
     public abstract MessageType MessageType { get; }
 
-    public string? Content { get; set; }
+    [ObservableProperty]
+    private string? _content;
 
     public static Message CreateError(string message)
     {

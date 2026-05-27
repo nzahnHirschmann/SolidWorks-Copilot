@@ -244,14 +244,48 @@ public partial class WPFChatPaneViewModel : ObservableObject
             //clear
             Question = "";
         }
+        catch (OperationCanceledException)
+        {
+            // User pressed Stop — Conversation already kept the partial reply.
+        }
         catch (Exception ex)
         {
-            Conversation.Messages.Add(Message.CreateError(ex.Message));
+            if (IsUnauthorized(ex))
+            {
+                // Token rejected by GitHub Models — surface the welcome
+                // / sign-in state again so the user can re-authenticate.
+                Kernel = null;
+                _configLoadResult = false;
+                OnPropertyChanged(nameof(IsConfigured));
+                Conversation.Messages.Add(Message.CreateError(
+                    "Your GitHub sign-in has expired or is missing access to this model. " +
+                    "Open Settings and sign in again."));
+            }
+            else
+            {
+                Conversation.Messages.Add(Message.CreateError(ex.Message));
+            }
         }
         finally
         {
             OnPropertyChanged(nameof(HasItem));
         }
+    }
+
+    private static bool IsUnauthorized(Exception ex)
+    {
+        for (var current = ex; current is not null; current = current.InnerException)
+        {
+            var msg = current.Message ?? string.Empty;
+            if (msg.Contains("401") ||
+                msg.IndexOf("Unauthorized", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                msg.IndexOf("invalid_token", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                msg.IndexOf("Bad credentials", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+        }
+        return false;
     }
     #endregion
 }

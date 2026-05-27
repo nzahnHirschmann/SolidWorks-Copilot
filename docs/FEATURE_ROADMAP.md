@@ -225,20 +225,21 @@ Implement as discrete read-only skills, then aggregate behind one
 The model can't intelligently extend an existing part without being able
 to *read* it.
 
-- [ ] `GetFeatureTree(maxDepth)` — JSON of feature names, types,
-  suppression state, parents
-- [ ] `GetSelectedEntity()` →
-  `{ type, name, area?, length?, faceNormal?, edgeEndpoints? }`
+- [x] `GetFeatureTree(maxDepth)` — JSON of feature names, types,
+  suppression state, children
+- [x] `GetSelectedEntity()` →
+  `{ type, typeId, name, featureType }`
 - [ ] `GetSketchEntities(sketchName)` — segments + dimensions +
   constraints
 - [ ] `GetReferenceGeometry()` — planes, axes, origins
-- [ ] `GetCustomProperties()` / `SetCustomProperty(name, value, type)`
-- [ ] `MeasureDistance(e1, e2)`, `MeasureAngle(e1, e2)`,
-  `MeasureMinRadius(face)`
-- [ ] `GetBoundingBox()` — axis-aligned + body-aligned
-- [ ] `Screenshot(view, width, height)` → base64 PNG. Lets a
-  vision-capable model literally *see* the part. Biggest single
-  accuracy multiplier once a vision model is selected.
+- [x] `GetCustomProperties()` / `SetCustomProperty(name, value, type)`
+- [x] `MeasureSelection()` — length / distance / angle / area / radius /
+  delta XYZ from the current 1–2 selection (covers `MeasureDistance` and
+  `MeasureAngle`)
+- [ ] `MeasureMinRadius(face)`
+- [x] `GetBoundingBox()` — axis-aligned, part docs
+- [x] `Screenshot(path, width, height)` → saves PNG/BMP/JPG and returns
+  the path. Lets a vision-capable model literally *see* the part.
 
 ---
 

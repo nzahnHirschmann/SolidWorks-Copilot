@@ -43,6 +43,7 @@ public sealed class BodyOperationSkill : SldWorksSkillContext
     [KernelFunction(nameof(DeleteBody))]
     [Description("Delete the currently selected body/bodies (BodyDelete " +
         "feature).")]
+    [RequiresConfirmation("Delete body")]
     public string DeleteBody()
     {
         var doc = ActiveSwDoc

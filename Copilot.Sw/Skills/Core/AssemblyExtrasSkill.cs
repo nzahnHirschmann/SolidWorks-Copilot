@@ -53,6 +53,7 @@ public sealed class AssemblyExtrasSkill : SldWorksSkillContext
     [KernelFunction(nameof(DeleteComponent))]
     [Description("Delete the named component from the active assembly. " +
         "Pass 'componentName' as shown by ListComponents.")]
+    [RequiresConfirmation("Delete component")]
     public string DeleteComponent(string componentName)
     {
         if (string.IsNullOrWhiteSpace(componentName))

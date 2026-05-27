@@ -91,6 +91,10 @@ public static class KernelExtensions
         {
             kernel.FunctionInvocationFilters.Add(new ToolCallTraceFilter());
         }
+        if (!kernel.FunctionInvocationFilters.Any(f => f is GovernanceFilter))
+        {
+            kernel.FunctionInvocationFilters.Add(new GovernanceFilter());
+        }
 
         var assembly = typeof(SldWorksSkillContext).Assembly;
         var skillTypes = assembly

@@ -66,6 +66,7 @@ public sealed class DocumentLifecycleSkill : SldWorksSkillContext
     [Description("Save the active SolidWorks document to a new absolute path. " +
         "The file extension determines the format (.sldprt/.sldasm/.slddrw, " +
         "or any export format SolidWorks supports such as .step/.iges/.pdf).")]
+    [RequiresConfirmation("Save As")]
     public void SaveActiveDocumentAs(
         [Description("Absolute target file path including extension.")] string path)
     {
@@ -94,6 +95,7 @@ public sealed class DocumentLifecycleSkill : SldWorksSkillContext
     [KernelFunction(nameof(CloseActiveDocument))]
     [Description("Close the active SolidWorks document. Pass true to save " +
         "first; otherwise unsaved changes are discarded.")]
+    [RequiresConfirmation("Close document")]
     public void CloseActiveDocument(
         [Description("Save the document before closing.")] bool save = false)
     {

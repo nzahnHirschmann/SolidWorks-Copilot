@@ -361,15 +361,31 @@ Not new SW APIs — agent-loop features.
 
 ## 7. P6 — Productionisation
 
-- [ ] **Skill telemetry** — log every kernel function call (name, args,
-  duration, success). Without this you can't tell why a plan failed.
-- [ ] **Permissioned tools** — mark skills as `RequiresConfirmation =
-  true` (e.g., `DeleteFeature`, `CloseAll`); chat pane shows a Yes/No
-  prompt.
-- [ ] **Error normalisation** — `SolidWorksSkillException(code, message,
-  recoverable)` so raw COM HRESULTs never reach the model.
-- [ ] **Unit tests via mock `ISldWorks`** — `StandardAloneSw` test
-  harness already exists; extend per new skill.
+- [x] **Skill telemetry** — `ToolCallTraceFilter` captures every call
+  into a per-turn `AsyncLocal` list for the chat UI; `GovernanceFilter`
+  additionally appends a JSONL record (timestamp, plugin, function,
+  args, durationMs, outcome, error code) to
+  `%APPDATA%\Copilot.Sw\telemetry\YYYY-MM-DD.jsonl`.
+- [x] **Permissioned tools** — `[RequiresConfirmation("title")]` gates
+  any KernelFunction through `IConfirmationPrompt` (default: WPF
+  `MessageBox` on the dispatcher thread; falls back to *deny* in
+  headless contexts). Applied to `DeleteComponent`, `DeleteBody`,
+  `CloseActiveDocument`, `SaveActiveDocumentAs`. A "no" raises
+  `OperationCanceledException` which the trace filter records as
+  `CANCELLED`.
+- [x] **Error normalisation** — `SolidWorksSkillException(code,
+  message, recoverable, inner)` with `Wrap(ex, operation)` mapping
+  `ArgumentException → BAD_ARG`, `InvalidOperationException →
+  BAD_STATE`, `NotSupportedException → UNSUPPORTED`,
+  `FileNotFoundException → NOT_FOUND`,
+  `UnauthorizedAccessException → DENIED`, `COMException →
+  SW_COM(0x…)`. Applied uniformly by `GovernanceFilter` so raw COM
+  HRESULTs never reach the model.
+- [x] **Unit tests** — `Copilot.SwTests/Skills/P6Tests.cs` covers
+  `SolidWorksSkillException.Wrap` mapping and
+  `Conversation.ExpandSlashCommand` preprocessor behaviour. Mock
+  `ISldWorks` harness via `StandardAloneSw` remains the path for
+  per-skill tests as new skills land.
 
 ---
 

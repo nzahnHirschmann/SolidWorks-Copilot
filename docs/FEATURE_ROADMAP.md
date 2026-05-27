@@ -159,13 +159,17 @@ breaks in the same way.
 
 ### 4.1 Creation
 
-- [ ] `CreateDrawingFromPart(part, template, sheetSize)` — actually
-  populate the existing empty `CreateDrawing()`!
-- [ ] `InsertView(part, viewType, x, y, scale)` — Front / Top / Right /
-  Iso / Section / Detail / Broken / Auxiliary
+- [x] `CreateDrawingFromPart(sheetSize?, insertModelDimensions?)` — uses
+  the active part/assembly + the configured default template, drops a
+  3rd-angle 3-view layout, optionally pulls model dimensions
+- [x] `InsertNamedView(modelPath, viewName, x, y)` — any SW orientation
+  name (`*Front`, `*Isometric`, …) or saved view
 - [ ] `InsertProjectedView(parentView, direction)`
-- [ ] `InsertSectionView(parentView, line)`,
-  `InsertDetailView(parentView, center, radius)`
+- [x] `InsertSectionView(x, y, label)` (pre-select section line) and
+  `InsertDetailView(x, y, scale, label)` (pre-select detail circle)
+- [x] `InsertAuxiliaryView(x, y, label)`
+- [x] `InsertModelDimensions()` — bring driving dims into all views
+- [x] `AddSheet(name, sheetSize, scale)`, `ActivateSheet(name)`
 - [ ] `InsertBomTable(view, type)`, `InsertHoleTable`,
   `InsertRevisionTable`, `InsertWeldmentCutList`
 - [ ] `InsertCenterMarks(view)`, `InsertCenterlines(view)`
@@ -185,28 +189,30 @@ breaks in the same way.
 Implement as discrete read-only skills, then aggregate behind one
 `[KernelFunction] InspectDrawing()` that returns a structured report.
 
+- [x] **InspectDrawing()** aggregate — JSON `{ summary, findings }`
+  covering sheet/view inventory, scale consistency per sheet, title
+  block completeness, feature-tree errors on each referenced model,
+  missing referenced files, views without annotations.
+- [x] **Feature-tree errors** — `ListFeatureTreeErrors()` returns every
+  feature with a non-zero error code (with type + isWarning).
+- [x] **Title block completeness** — `CheckTitleBlock(required?)`
+  reading custom properties (defaults to PartNumber/Description/Material/
+  Finish/Revision/DrawnBy/Date).
+- [x] **Reference checks** — broken view references (model moved/
+  renamed) surfaced via `missingReferences`.
+- [x] **Sheet/view inventory** — `ListSheets()`, `ListDrawingViews()`.
 - [ ] **Missing dimensions** — walk every visible edge/feature per view;
   flag any without a driving dimension and no implied symmetry.
   `CheckMissingDimensions(view)` → `[{ view, edgeId, length,
   suggestedDim }]`.
-- [ ] **Feature-tree errors** — `ListFeatureTreeErrors()` returning every
-  red/yellow `IFeature` with the underlying error string.
 - [ ] **GD&T completeness** — every datum referenced in a control frame
   must exist; every critical face on the part should carry at least one
   tolerance. `CheckGdtConsistency()`.
-- [ ] **Title block completeness** — `CheckTitleBlock(required: [
-  PartNumber, Material, Finish, Revision, Drawn, Date ])` reading custom
-  properties + sheet format text.
 - [ ] **Tolerance sanity** — dimensions with no tolerance, or with
   tolerance ranges that violate ISO 2768-fine, are flagged.
-- [ ] **Scale & paper** — section views whose scale differs from the
-  parent without a note; views off the sheet boundary; overlapping
-  views.
 - [ ] **BoM vs assembly diff** — compare drawn BoM rows vs
   `ListComponents()` of the linked assembly. Flag extra/missing items,
   qty mismatch.
-- [ ] **Reference checks** — broken view references (model moved/renamed),
-  missing model edges (dangling annotations).
 - [ ] **Standards compliance** — wrap SolidWorks Design Checker
   (`swDesignChecker`) and surface the results in chat.
 - [ ] **Spell check** — every annotation through

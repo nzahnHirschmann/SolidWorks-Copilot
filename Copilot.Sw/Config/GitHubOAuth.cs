@@ -42,20 +42,22 @@ public sealed class GitHubOAuth
     /// <list type="number">
     /// <item>environment variable <c>SOLIDWORKS_COPILOT_GITHUB_CLIENT_ID</c></item>
     /// <item>a <c>github-oauth-client-id.txt</c> file next to the add-in dll</item>
-    /// <item>the placeholder constant below (which makes sign-in fail with
-    ///       a clear error message)</item>
+    /// <item>the public GitHub CLI client_id, which has Device Flow enabled
+    ///       and produces tokens that work with the GitHub Models endpoint
+    ///       — this lets the add-in sign in out of the box without forcing
+    ///       every user to register their own OAuth app.</item>
     /// </list>
     /// </summary>
     public static string ClientId => ResolveClientId();
 
     /// <summary>
-    /// Placeholder value used when no client_id has been configured. The
-    /// repository owner must register an OAuth App at
-    /// https://github.com/settings/applications/new (with "Enable Device
-    /// Flow" checked) and replace this constant or supply the id via
-    /// environment variable / sidecar file.
+    /// Public client_id of the GitHub CLI. Documented in
+    /// https://github.com/cli/cli (internal/authflow/flow.go). Reused here
+    /// as a sensible default so sign-in works without per-user OAuth-app
+    /// registration. Override via env var or sidecar file if you want
+    /// tokens to show up under your own OAuth app.
     /// </summary>
-    public const string UnconfiguredClientId = "<REGISTER_YOUR_OAUTH_APP_CLIENT_ID>";
+    public const string DefaultClientId = "178c6fc778ccc68e1d6a";
 
     /// <summary>OAuth scopes requested for GitHub Models access.</summary>
     public const string Scope = "read:user";
@@ -77,12 +79,13 @@ public sealed class GitHubOAuth
     }
 
     /// <summary>
-    /// Returns <see langword="true"/> if a real OAuth App client_id has
-    /// been configured. The Settings UI calls this before kicking off the
-    /// flow so it can show a helpful setup message instead of a 404.
+    /// Returns <see langword="true"/> if any client_id is configured.
+    /// Always <see langword="true"/> in practice because of
+    /// <see cref="DefaultClientId"/>, but kept for callers that want to
+    /// distinguish "user supplied their own id" from "using the default".
     /// </summary>
     public static bool IsConfigured =>
-        !string.IsNullOrWhiteSpace(ClientId) && ClientId != UnconfiguredClientId;
+        !string.IsNullOrWhiteSpace(ClientId);
 
     /// <summary>
     /// Step 1: request a device code from GitHub.
@@ -93,10 +96,7 @@ public sealed class GitHubOAuth
         if (!IsConfigured)
         {
             throw new InvalidOperationException(
-                "GitHub OAuth client_id is not configured. Register an OAuth App " +
-                "at https://github.com/settings/applications/new (enable Device " +
-                "Flow), then set the SOLIDWORKS_COPILOT_GITHUB_CLIENT_ID environment " +
-                "variable to the new client_id.");
+                "GitHub OAuth client_id is not configured.");
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Post, DeviceCodeUrl)
@@ -205,6 +205,123 @@ public sealed class GitHubOAuth
             "Timed out waiting for GitHub sign-in to complete.");
     }
 
+    /// <summary>
+    /// Calls <c>GET https://api.github.com/user</c> with the given token
+    /// and returns the <c>login</c> field, or null if it can't be parsed.
+    /// </summary>
+    public async Task<string?> GetUserLoginAsync(
+        string token,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "https://api.github.com/user");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+        request.Headers.UserAgent.ParseAdd("SolidWorks-Copilot");
+
+        using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("login", out var login)
+                && login.ValueKind == JsonValueKind.String)
+            {
+                return login.GetString();
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Calls the GitHub Models catalog endpoint and returns the available
+    /// model ids (e.g. <c>openai/gpt-4o-mini</c>) the supplied token can
+    /// use. Returns an empty list rather than throwing if the catalog
+    /// cannot be reached.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> ListAvailableModelsAsync(
+        string token,
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "https://models.github.ai/catalog/models");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        request.Headers.UserAgent.ParseAdd("SolidWorks-Copilot");
+
+        try
+        {
+            using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return Array.Empty<string>();
+            }
+
+            var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            return ParseCatalog(body);
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
+    }
+
+    private static IReadOnlyList<string> ParseCatalog(string body)
+    {
+        var ids = new List<string>();
+        using var doc = JsonDocument.Parse(body);
+
+        // Catalog historically returns either a bare array or an object
+        // with a "models"/"data" array. Handle both shapes.
+        JsonElement array;
+        if (doc.RootElement.ValueKind == JsonValueKind.Array)
+        {
+            array = doc.RootElement;
+        }
+        else if (doc.RootElement.TryGetProperty("models", out var m) && m.ValueKind == JsonValueKind.Array)
+        {
+            array = m;
+        }
+        else if (doc.RootElement.TryGetProperty("data", out var d) && d.ValueKind == JsonValueKind.Array)
+        {
+            array = d;
+        }
+        else
+        {
+            return ids;
+        }
+
+        foreach (var entry in array.EnumerateArray())
+        {
+            // Prefer "id" (e.g. "openai/gpt-4o-mini"); fall back to "name".
+            string? id = null;
+            if (entry.TryGetProperty("id", out var idEl) && idEl.ValueKind == JsonValueKind.String)
+            {
+                id = idEl.GetString();
+            }
+            else if (entry.TryGetProperty("name", out var nameEl) && nameEl.ValueKind == JsonValueKind.String)
+            {
+                id = nameEl.GetString();
+            }
+
+            if (!string.IsNullOrWhiteSpace(id))
+            {
+                ids.Add(id!);
+            }
+        }
+
+        // De-dupe and sort for a stable picker.
+        ids.Sort(StringComparer.OrdinalIgnoreCase);
+        return ids;
+    }
+
     private static string ResolveClientId()
     {
         var fromEnv = Environment.GetEnvironmentVariable("SOLIDWORKS_COPILOT_GITHUB_CLIENT_ID");
@@ -231,10 +348,10 @@ public sealed class GitHubOAuth
         }
         catch
         {
-            // Best-effort. Fall through to the placeholder.
+            // Best-effort. Fall through to the default.
         }
 
-        return UnconfiguredClientId;
+        return DefaultClientId;
     }
 }
 

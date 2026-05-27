@@ -42,25 +42,7 @@
                 TextWrapping="Wrap"
                 Text="This add-in talks to GitHub Models. Sign in with your GitHub account using the device flow — no token pasting required." />
 
-            <!-- Model picker -->
-            <Grid Margin="0,4,0,12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition />
-                </Grid.ColumnDefinitions>
-                <TextBlock
-                    VerticalAlignment="Center"
-                    Margin="0,0,8,0"
-                    FontWeight="SemiBold"
-                    Text="Model:" />
-                <ComboBox
-                    Grid.Column="1"
-                    IsEditable="True"
-                    ItemsSource="{Binding GitHubModelPresets}"
-                    Text="{Binding GitHubModel, UpdateSourceTrigger=PropertyChanged}" />
-            </Grid>
-
-            <!-- Idle state: Sign-in button -->
+            <!-- Idle state: Sign-in button (model picker is hidden until we know what's available) -->
             <StackPanel
                 Orientation="Horizontal"
                 Margin="0,8,0,8"
@@ -79,6 +61,35 @@
                     Icon="SignOut24"
                     Visibility="{Binding IsSignedIn, Converter={StaticResource BoolToVisibilityConverter}}" />
             </StackPanel>
+
+            <!-- Signed-in identity -->
+            <TextBlock
+                Margin="0,4,0,0"
+                FontStyle="Italic"
+                Foreground="#188038"
+                Text="{Binding SignedInIdentity}"
+                TextWrapping="Wrap"
+                Visibility="{Binding IsSignedIn, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+            <!-- Model picker (only meaningful once we know which models the token can use) -->
+            <Grid
+                Margin="0,12,0,8"
+                Visibility="{Binding IsSignedIn, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                    VerticalAlignment="Center"
+                    Margin="0,0,8,0"
+                    FontWeight="SemiBold"
+                    Text="Model:" />
+                <ComboBox
+                    Grid.Column="1"
+                    IsEditable="True"
+                    ItemsSource="{Binding GitHubModelPresets}"
+                    Text="{Binding GitHubModel, UpdateSourceTrigger=PropertyChanged}" />
+            </Grid>
 
             <!-- Awaiting state: device code + verification URL + cancel -->
             <Border
@@ -143,15 +154,6 @@
                 Margin="0,8,0,0"
                 Text="{Binding GitHubStatus}"
                 TextWrapping="Wrap" />
-
-            <!-- Signed-in indicator -->
-            <TextBlock
-                Margin="0,8,0,0"
-                FontStyle="Italic"
-                Foreground="#188038"
-                Text="{Binding SignedInIdentity}"
-                TextWrapping="Wrap"
-                Visibility="{Binding IsSignedIn, Converter={StaticResource BoolToVisibilityConverter}}" />
         </StackPanel>
 
         <!-- Buttons row -->

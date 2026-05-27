@@ -139,6 +139,176 @@ public sealed class P1ExtrasSkill : SldWorksSkillContext
         };
     }
 
+    // -------- HoleWizard variants: counter-bore / counter-sink / pipe-tap --------
+
+    [KernelFunction(nameof(InsertCounterBoreHole))]
+    [Description("Insert a HoleWizard counter-bored hole sized for a socket-" +
+        "head cap screw on the pre-selected planar face. 'size' uses the " +
+        "fastener-table format ('M8', '1/4', '#10'). 'standard' is ISO " +
+        "(default), ANSI_METRIC, DIN, ANSI_INCH, BSI, JIS or GB. " +
+        "'endCondition' is BLIND / THROUGH / MIDPLANE.")]
+    public string InsertCounterBoreHole(
+        string size,
+        double depth = 0,
+        string standard = "ISO",
+        string endCondition = "BLIND",
+        string? unit = null)
+        => InsertHoleWizardVariant(
+            swWzdGeneralHoleTypes_e.swWzdCounterBore,
+            ResolveCounterBoreStandard(standard),
+            size, depth, endCondition, unit);
+
+    [KernelFunction(nameof(InsertCounterSinkHole))]
+    [Description("Insert a HoleWizard counter-sunk hole sized for a flat-" +
+        "head screw on the pre-selected planar face. Arguments mirror " +
+        "InsertCounterBoreHole.")]
+    public string InsertCounterSinkHole(
+        string size,
+        double depth = 0,
+        string standard = "ISO",
+        string endCondition = "BLIND",
+        string? unit = null)
+        => InsertHoleWizardVariant(
+            swWzdGeneralHoleTypes_e.swWzdCounterSink,
+            ResolveCounterSinkStandard(standard),
+            size, depth, endCondition, unit);
+
+    [KernelFunction(nameof(InsertPipeTapHole))]
+    [Description("Insert a HoleWizard tapered pipe-tap hole on the pre-" +
+        "selected planar face. 'size' is a pipe-thread designation like " +
+        "'1/8' or '1/4'. 'standard' is ISO (default), ANSI_INCH, DIN, " +
+        "BSI, JIS or GB.")]
+    public string InsertPipeTapHole(
+        string size,
+        double depth = 0,
+        string standard = "ISO",
+        string endCondition = "BLIND",
+        string? unit = null)
+        => InsertHoleWizardVariant(
+            swWzdGeneralHoleTypes_e.swWzdPipeTap,
+            ResolvePipeTapStandard(standard),
+            size, depth, endCondition, unit);
+
+    private string InsertHoleWizardVariant(
+        swWzdGeneralHoleTypes_e holeType,
+        (int standardIndex, int fastenerIndex) idx,
+        string size,
+        double depth,
+        string endCondition,
+        string? unit)
+    {
+        if (string.IsNullOrWhiteSpace(size))
+        {
+            throw new ArgumentException("Hole size is required.", nameof(size));
+        }
+        var doc = ActiveSwDoc
+            ?? throw new InvalidOperationException("No active SolidWorks document.");
+        if ((swDocumentTypes_e)doc.GetType() != swDocumentTypes_e.swDocPART)
+        {
+            throw new InvalidOperationException("HoleWizard variants require an active part.");
+        }
+        if (doc.SelectionManager is not ISelectionMgr sm || sm.GetSelectedObjectCount2(-1) < 1)
+        {
+            throw new InvalidOperationException("Select a planar face first.");
+        }
+
+        var end = endCondition?.Trim().ToUpperInvariant() switch
+        {
+            "THROUGH" or "THROUGHALL" or "THROUGH_ALL" => swEndConditions_e.swEndCondThroughAll,
+            "MIDPLANE" => swEndConditions_e.swEndCondMidPlane,
+            _ => swEndConditions_e.swEndCondBlind,
+        };
+        var depthM = end == swEndConditions_e.swEndCondThroughAll
+            ? 0.01
+            : SwUnits.ToMeters(depth > 0 ? depth : 10, unit, doc);
+
+        var feat = doc.FeatureManager.HoleWizard5(
+            GenericHoleType: (int)holeType,
+            StandardIndex: idx.standardIndex,
+            FastenerTypeIndex: idx.fastenerIndex,
+            SSize: size,
+            EndType: (short)end,
+            Diameter: 0,
+            Depth: depthM,
+            Length: depthM,
+            Value1: 0, Value2: 0, Value3: 0, Value4: 0, Value5: 0, Value6: 0,
+            Value7: 0, Value8: 0, Value9: 0, Value10: 0, Value11: 0, Value12: 0,
+            ThreadClass: "",
+            RevDir: false,
+            FeatureScope: true,
+            AutoSelect: true,
+            AssemblyFeatureScope: false,
+            AutoSelectComponents: false,
+            PropagateFeatureToParts: false) as IFeature
+            ?? throw new InvalidOperationException(
+                $"HoleWizard failed for {holeType} size '{size}' under standard index {idx.standardIndex}. " +
+                "Verify the size string matches a row in the chosen fastener table.");
+        return feat.Name;
+    }
+
+    private static (int standardIndex, int fastenerIndex) ResolveCounterBoreStandard(string standard)
+    {
+        // Socket-head-cap-screw is the canonical counter-bore fastener
+        // across every standard SolidWorks ships.
+        var s = standard?.Trim().ToUpperInvariant() ?? "ISO";
+        return s switch
+        {
+            "ANSI_METRIC" or "ANSIMETRIC" => (
+                (int)swWzdHoleStandards_e.swStandardAnsiMetric,
+                (int)swWzdHoleStandardFastenerTypes_e.swStandardAnsiMetricSocketHeadCapScrew),
+            "ANSI_INCH" or "ANSIINCH" or "ANSI" => (
+                (int)swWzdHoleStandards_e.swStandardAnsiInch,
+                (int)swWzdHoleStandardFastenerTypes_e.swStandardAnsiInchSocketCapScrew),
+            _ => (
+                (int)swWzdHoleStandards_e.swStandardISO,
+                (int)swWzdHoleStandardFastenerTypes_e.swStandardISOSocketHeadCap),
+        };
+    }
+
+    private static (int standardIndex, int fastenerIndex) ResolveCounterSinkStandard(string standard)
+    {
+        // 82° flat head is the most common counter-sink fastener.
+        var s = standard?.Trim().ToUpperInvariant() ?? "ISO";
+        return s switch
+        {
+            "ANSI_METRIC" or "ANSIMETRIC" => (
+                (int)swWzdHoleStandards_e.swStandardAnsiMetric,
+                (int)swWzdHoleStandardFastenerTypes_e.swStandardAnsiMetricFlatHead82),
+            "ANSI_INCH" or "ANSIINCH" or "ANSI" => (
+                (int)swWzdHoleStandards_e.swStandardAnsiInch,
+                (int)swWzdHoleStandardFastenerTypes_e.swStandardAnsiInchFlatHead82),
+            _ => (
+                (int)swWzdHoleStandards_e.swStandardISO,
+                (int)swWzdHoleStandardFastenerTypes_e.swStandardISOCTSKFlatHead),
+        };
+    }
+
+    private static (int standardIndex, int fastenerIndex) ResolvePipeTapStandard(string standard)
+    {
+        var s = standard?.Trim().ToUpperInvariant() ?? "ISO";
+        return s switch
+        {
+            "ANSI_INCH" or "ANSIINCH" or "ANSI" => (
+                (int)swWzdHoleStandards_e.swStandardAnsiInch,
+                (int)swWzdHoleStandardFastenerTypes_e.swStandardAnsiInchTaperedPipeTap),
+            "DIN" => (
+                (int)swWzdHoleStandards_e.swStandardDIN,
+                (int)swWzdHoleStandardFastenerTypes_e.swStandardDINTaperedPipeTap),
+            "JIS" => (
+                (int)swWzdHoleStandards_e.swStandardJIS,
+                (int)swWzdHoleStandardFastenerTypes_e.swStandardJISTaperedPipeTap),
+            "BSI" => (
+                (int)swWzdHoleStandards_e.swStandardBSI,
+                (int)swWzdHoleStandardFastenerTypes_e.swStandardBSITaperedPipeTap),
+            "GB" => (
+                (int)swWzdHoleStandards_e.swStandardGB,
+                (int)swWzdHoleStandardFastenerTypes_e.swStandardGBTaperedPipeTap),
+            _ => (
+                (int)swWzdHoleStandards_e.swStandardISO,
+                (int)swWzdHoleStandardFastenerTypes_e.swStandardISOTaperedPipeTap),
+        };
+    }
+
     // -------- Combine bodies --------
 
     [KernelFunction(nameof(CombineBodies))]

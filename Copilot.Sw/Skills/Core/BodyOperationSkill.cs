@@ -94,4 +94,100 @@ public sealed class BodyOperationSkill : SldWorksSkillContext
                 "KnitSurfaces failed. Pre-select two or more surfaces sharing edges.");
         return feat.Name;
     }
+
+    [KernelFunction(nameof(SplitBody))]
+    [Description("Split the currently selected solid body using the also-" +
+        "selected trimming entities (planes / surfaces / sketches). Returns " +
+        "the new Split feature name. Pre-selection order: the solid body to " +
+        "split, then every trimming entity. Set 'consumeOriginal' to remove " +
+        "the source body after splitting (it is kept by default so the " +
+        "resulting bodies can be individually deleted later).")]
+    public string SplitBody(bool consumeOriginal = false)
+    {
+        var doc = ActiveSwDoc
+            ?? throw new InvalidOperationException("No active SolidWorks document.");
+        if (doc is not IPartDoc)
+        {
+            throw new InvalidOperationException("SplitBody requires an active part document.");
+        }
+        if (doc.SelectionManager is not ISelectionMgr sm
+            || sm.GetSelectedObjectCount2(-1) < 2)
+        {
+            throw new InvalidOperationException(
+                "Pre-select the solid body to split followed by at least one trimming entity.");
+        }
+
+        var fm = doc.FeatureManager;
+        // PreSplitBody2 returns the array of resulting bodies; mark them all
+        // for retention by passing the entire array back to PostSplitBody2.
+        var resultingBodies = fm.PreSplitBody2();
+        if (resultingBodies is null)
+        {
+            throw new InvalidOperationException(
+                "PreSplitBody2 returned no bodies. Verify the body and trimming " +
+                "entities are selected and that the trim would actually divide the body.");
+        }
+
+        // bodiesToMark = same array (keep them all);
+        // origins / savePaths / overrideTemplateName = null (no file-per-body save).
+        var postResult = fm.PostSplitBody2(resultingBodies, ConsumeCut: consumeOriginal,
+            Origins: null, SavePaths: null, OverrideTemplateName: string.Empty);
+        if (postResult is null)
+        {
+            throw new InvalidOperationException("PostSplitBody2 failed.");
+        }
+
+        // The new feature is the last item in the FeatureManager tree.
+        var last = LastFeatureName(doc) ?? "Split";
+        return last;
+    }
+
+    [KernelFunction(nameof(TrimSurface))]
+    [Description("Trim the currently selected surfaces against each other " +
+        "(mutual trim) or against a selected trim tool (standard trim). " +
+        "Pre-selection: the surface(s) to trim, then the trim tool, then " +
+        "the face/piece to keep or remove. Set 'mutualTrim' true for two " +
+        "surfaces that trim each other; otherwise standard trim is used. " +
+        "'removePicked' true removes the highlighted pieces, false keeps them. " +
+        "'sewSurface' knits the result automatically.")]
+    public string TrimSurface(
+        bool mutualTrim = false,
+        bool removePicked = true,
+        bool sewSurface = false)
+    {
+        var doc = ActiveSwDoc
+            ?? throw new InvalidOperationException("No active SolidWorks document.");
+        if (doc.SelectionManager is not ISelectionMgr sm
+            || sm.GetSelectedObjectCount2(-1) < 2)
+        {
+            throw new InvalidOperationException(
+                "Pre-select the surface(s) to trim plus the trim tool / pieces.");
+        }
+
+        var fm = doc.FeatureManager;
+        if (!fm.PreTrimSurface(mutualTrim,
+                BSplitSystemIn: false,
+                BSplitLinearIn: false,
+                BRemovePickedIn: removePicked))
+        {
+            throw new InvalidOperationException(
+                "PreTrimSurface failed. Check selection: needs at least one surface plus a trim tool.");
+        }
+        var feat = fm.PostTrimSurface(sewSurface) as IFeature
+            ?? throw new InvalidOperationException("PostTrimSurface failed.");
+        return feat.Name;
+    }
+
+    private static string? LastFeatureName(IModelDoc2 doc)
+    {
+        string? name = null;
+        var feat = doc.FirstFeature() as IFeature;
+        int safety = 0;
+        while (feat is not null && safety++ < 5000)
+        {
+            name = feat.Name;
+            feat = feat.GetNextFeature() as IFeature;
+        }
+        return name;
+    }
 }

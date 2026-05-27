@@ -93,7 +93,13 @@ breaks in the same way.
 - [x] `Revolve(sketch, axis, angle)` / `RevolveCut(...)`
 - [x] `Sweep(profileSketch, pathSketch)` / `SweepCut`
 - [x] `Loft(profiles[])` / `LoftCut`
-- [ ] `BoundarySurface(...)` (advanced shapes)
+- [ ] `BoundarySurface(...)` — *deferred:* `IFeatureManager` in the
+  shipped interop has no first-class `InsertBoundarySurface` /
+  `InsertFilledSurface` entry point; authoring this feature would
+  require driving the PMP page through `IModelDoc2.SketchManager` +
+  `IModelDoc2.ClearSelection2` rituals that are too fragile for the
+  agent loop. Keep open until a stable wrapper exists or until we
+  ship a macro-recording shim.
 
 ### 2.4 Modify features
 
@@ -103,8 +109,13 @@ breaks in the same way.
 - [x] `SimpleHole(diameter, depth, throughAll)` — basic hole
 - [x] `InsertTappedHole(size, depth, standard, endCondition)` — HoleWizard5
   wrapper for the common tapped-hole case (ISO/DIN/ANSI/JIS/BSI/GB)
-- [ ] Full `HoleWizard(spec, points[])` for counter-bore / counter-sink /
-  pipe-tap variants
+- [x] `InsertCounterBoreHole(size, depth, standard, endCondition)`,
+  `InsertCounterSinkHole(...)`, `InsertPipeTapHole(...)` — all three
+  wrap `IFeatureManager.HoleWizard5` with `swWzdGeneralHoleTypes_e`
+  `swWzdCounterBore` / `swWzdCounterSink` / `swWzdPipeTap`, mapping a
+  `standard` string (ISO/ANSI_METRIC/ANSI_INCH/DIN/JIS/BSI/GB) and the
+  canonical fastener (socket-head cap screw / 82° flat head / tapered
+  pipe tap) to the right `swWzdHoleStandardFastenerTypes_e` index.
 - [x] `Thread(diameter, depth?, endCondition?, callout?)` — cosmetic
   thread via `InsertCosmeticThread3` on pre-selected cylindrical face
   or circular edge (BLIND / UP_TO_NEXT / THROUGH)
@@ -115,12 +126,19 @@ breaks in the same way.
 - [x] `CombineBodies(op)` — ADD / SUBTRACT / COMMON across all solid
   bodies (first body = main, rest = tools)
 - [x] `MoveCopyBody(...)`, `DeleteBody(...)`
-- [ ] `SplitBody(...)`
+- [x] `SplitBody(consumeOriginal)` — wraps
+  `IFeatureManager.PreSplitBody2` + `PostSplitBody2`. Pre-select the
+  solid body followed by every trimming entity (planes / surfaces /
+  sketches); all resulting bodies are marked for retention unless
+  `consumeOriginal` is true.
 - [x] `ThickenSurface(thickness, direction)`
 - [x] `KnitSurfaces(mergeEntities?, knitToBody?, gapToleranceMm?)` — sew
   the pre-selected surfaces (`InsertSewRefSurface`); promote to solid if
   closed and `knitToBody` is true
-- [ ] `TrimSurface(...)`
+- [x] `TrimSurface(mutualTrim, removePicked, sewSurface)` — wraps
+  `IFeatureManager.PreTrimSurface` + `PostTrimSurface`. Standard trim
+  (default) trims the pre-selected surface(s) against a trim tool;
+  `mutualTrim=true` trims two intersecting surfaces against each other.
 
 ### 2.6 Configurations & equations
 

@@ -228,10 +228,16 @@ Implement as discrete read-only skills, then aggregate behind one
 - [x] **BoM vs assembly diff** — `CheckBomVsAssembly()` compares the
   first BoM table on the drawing to the live `ListComponents()` of its
   linked (open) assembly, flagging extra / missing / qty-mismatch rows.
-- [ ] **Standards compliance** — wrap SolidWorks Design Checker
-  (`swDesignChecker`) and surface the results in chat.
-- [ ] **Spell check** — every annotation through
-  `IModelDocExtension.SpellCheckDocument`.
+- [x] **Standards compliance** — `RunDesignChecker(standardsFile)`
+  best-effort wrapper around the SwDesignCheck addin (loads via CLSID
+  `{59F38FA7-1FAC-4ED6-A5B9-5D1B7DD0FD4D}`, then reflection-invokes the
+  documented entry points). Falls back with a clear error pointing at
+  `InspectDrawing` when the addin is missing or its surface differs.
+- [x] **Spell check** — `CheckSpelling()` collects every textual string
+  (notes, dimension prefix/suffix/above/below, weld text, GTol below-
+  frame text, sheet names, custom-property values) so the LLM can
+  spell-check them itself. SolidWorks' native `IAnnotation.CheckSpelling`
+  pops an interactive dialog, so we delegate to the model instead.
 
 ---
 

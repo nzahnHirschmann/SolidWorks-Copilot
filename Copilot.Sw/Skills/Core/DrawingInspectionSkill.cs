@@ -381,6 +381,144 @@ public sealed class DrawingInspectionSkill : SldWorksSkillContext
         });
     }
 
+    [KernelFunction(nameof(CheckSpelling))]
+    [Description("Collect every textual string from the active document so " +
+        "the LLM can spell-check them: notes, GTol text, weld-symbol " +
+        "text, dimension overrides, sheet titles, and file-level custom " +
+        "property values. Returns JSON { drawing, items[] } where each " +
+        "item is { source, location, text }. SolidWorks' native " +
+        "CheckSpelling opens an interactive dialog, so this function " +
+        "delegates the actual spell-checking to the model.")]
+    public string CheckSpelling()
+    {
+        var doc = ActiveSwDoc
+            ?? throw new InvalidOperationException("No active SolidWorks document.");
+        var items = new List<object>();
+
+        // Custom property values (title-block source) — file level only.
+        var mgr = doc.Extension.get_CustomPropertyManager(string.Empty);
+        var names = mgr.GetNames() as string[] ?? Array.Empty<string>();
+        foreach (var n in names)
+        {
+            mgr.Get5(n, false, out _, out string resolved, out _);
+            if (!string.IsNullOrWhiteSpace(resolved))
+            {
+                items.Add(new { source = "customProperty", location = n, text = resolved });
+            }
+        }
+
+        // Annotation text — walk every annotation, including per-view ones on a drawing.
+        if (doc is IDrawingDoc dwg)
+        {
+            var sheetNames = dwg.GetSheetNames() as string[] ?? Array.Empty<string>();
+            foreach (var sn in sheetNames)
+            {
+                items.Add(new { source = "sheetName", location = sn, text = sn });
+                var sheet = (ISheet)dwg.get_Sheet(sn);
+                var views = sheet.GetViews() as object[] ?? Array.Empty<object>();
+                foreach (var vo in views)
+                {
+                    if (vo is not IView v) { continue; }
+                    CollectAnnotationText(v.GetFirstAnnotation3() as IAnnotation,
+                        $"sheet '{sn}' / view '{v.GetName2()}'", items);
+                }
+            }
+        }
+        else
+        {
+            CollectAnnotationText(doc.GetFirstAnnotation2() as IAnnotation,
+                "model", items);
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            drawing = doc.GetTitle(),
+            itemCount = items.Count,
+            items,
+        });
+    }
+
+    [KernelFunction(nameof(RunDesignChecker))]
+    [Description("Run the SOLIDWORKS Design Checker addin against the " +
+        "active document using a .swstd standards file and return its " +
+        "results as JSON. Requires the Design Checker addin to be " +
+        "available on the host. This is a best-effort wrapper: the " +
+        "addin's COM surface is undocumented and varies by SOLIDWORKS " +
+        "version, so on failure the function reports what it tried and " +
+        "suggests InspectDrawing as a fallback.")]
+    public string RunDesignChecker(string standardsFile)
+    {
+        if (string.IsNullOrWhiteSpace(standardsFile))
+        {
+            throw new ArgumentException("standardsFile is required (.swstd).",
+                nameof(standardsFile));
+        }
+        if (!File.Exists(standardsFile))
+        {
+            throw new InvalidOperationException(
+                $"Standards file not found: {standardsFile}");
+        }
+        var sw = Sw
+            ?? throw new InvalidOperationException("SolidWorks is not running.");
+        var doc = ActiveSwDoc
+            ?? throw new InvalidOperationException("No active SolidWorks document.");
+
+        const string clsid = "{59F38FA7-1FAC-4ED6-A5B9-5D1B7DD0FD4D}";
+        var tried = new List<string>();
+
+        object? addin = sw.GetAddInObject(clsid);
+        tried.Add($"GetAddInObject({clsid}) -> {(addin is null ? "null" : "object")}");
+        if (addin is null)
+        {
+            int loadResult = sw.LoadAddIn(clsid);
+            tried.Add($"LoadAddIn({clsid}) -> {loadResult}");
+            addin = sw.GetAddInObject(clsid);
+            tried.Add($"GetAddInObject(after-load) -> {(addin is null ? "null" : "object")}");
+        }
+        if (addin is null)
+        {
+            throw new InvalidOperationException(
+                "Could not obtain the Design Checker addin object. " +
+                "Verify SwDesignCheck.dll is installed and registered. " +
+                "Fallback: InspectDrawing aggregates equivalent QA checks. " +
+                "Tried: " + string.Join("; ", tried));
+        }
+
+        // Try the documented batch-mode entry points in order; method names
+        // differ across SolidWorks versions, so use reflection and swallow
+        // missing-member exceptions for the ones that don't exist.
+        var addinType = addin.GetType();
+        var attempts = new (string name, Func<object?> call)[]
+        {
+            ("CheckActiveDocument(standardsFile)",       () => addinType.InvokeMember("CheckActiveDocument",       System.Reflection.BindingFlags.InvokeMethod, null, addin, new object[] { standardsFile })),
+            ("RunStandardsCheck(doc, standardsFile)",    () => addinType.InvokeMember("RunStandardsCheck",        System.Reflection.BindingFlags.InvokeMethod, null, addin, new object[] { doc, standardsFile })),
+            ("OpenAndCheckDocument(standardsFile, doc)", () => addinType.InvokeMember("OpenAndCheckDocument",     System.Reflection.BindingFlags.InvokeMethod, null, addin, new object[] { standardsFile, doc })),
+            ("CheckDocument(doc, standardsFile)",        () => addinType.InvokeMember("CheckDocument",            System.Reflection.BindingFlags.InvokeMethod, null, addin, new object[] { doc, standardsFile })),
+        };
+        foreach (var (name, call) in attempts)
+        {
+            try
+            {
+                var result = call();
+                return JsonSerializer.Serialize(new
+                {
+                    addinClsid = clsid,
+                    method = name,
+                    standardsFile,
+                    raw = result?.ToString(),
+                });
+            }
+            catch (Exception ex)
+            {
+                tried.Add($"{name} -> {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+        throw new InvalidOperationException(
+            "Design Checker addin loaded but no known entry point accepted the call. " +
+            "Fallback: InspectDrawing aggregates equivalent QA checks. " +
+            "Tried: " + string.Join("; ", tried));
+    }
+
     [KernelFunction(nameof(InspectDrawing))]
     [Description("Run a full accuracy/QA report on the active drawing. " +
         "Aggregates sheet/view inventory, view scale consistency, title " +
@@ -604,6 +742,48 @@ public sealed class DrawingInspectionSkill : SldWorksSkillContext
                 }
                 ann = ann.GetNext3() as IAnnotation;
             }
+        }
+    }
+
+    private static void CollectAnnotationText(IAnnotation? first, string location, List<object> items)
+    {
+        var ann = first;
+        int safety = 0;
+        while (ann is not null && safety++ < 10000)
+        {
+            var t = (swAnnotationType_e)ann.GetType();
+            var spec = ann.GetSpecificAnnotation();
+            switch (t)
+            {
+                case swAnnotationType_e.swNote when spec is INote note:
+                    Add(note.GetText(), "note");
+                    break;
+                case swAnnotationType_e.swDisplayDimension when spec is IDisplayDimension dd:
+                    Add(dd.GetText((int)swDimensionTextParts_e.swDimensionTextPrefix), "dim.prefix");
+                    Add(dd.GetText((int)swDimensionTextParts_e.swDimensionTextSuffix), "dim.suffix");
+                    Add(dd.GetText((int)swDimensionTextParts_e.swDimensionTextCalloutAbove), "dim.above");
+                    Add(dd.GetText((int)swDimensionTextParts_e.swDimensionTextCalloutBelow), "dim.below");
+                    break;
+                case swAnnotationType_e.swWeldSymbol when spec is IWeldSymbol ws:
+                    Add(ws.GetTextAtIndex(0), "weld");
+                    break;
+                case swAnnotationType_e.swGTol when spec is IGtol gtol:
+                    {
+                        int below = gtol.GetBelowFrameTextLineCount();
+                        for (int i = 0; i < below; i++)
+                        {
+                            Add(gtol.GetBelowFrameTextAt(i), "gtol.belowFrame");
+                        }
+                    }
+                    break;
+            }
+            ann = ann.GetNext3() as IAnnotation;
+        }
+
+        void Add(string? text, string kind)
+        {
+            if (string.IsNullOrWhiteSpace(text)) { return; }
+            items.Add(new { source = kind, location, text });
         }
     }
 

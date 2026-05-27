@@ -82,5 +82,12 @@ public class Conversation : ObservableObject
     {
         _history += theNewChatExchange;
     }
+
+    /// <summary>Reset the conversation: drop all messages and history.</summary>
+    public void Clear()
+    {
+        Messages.Clear();
+        _history = "";
+    }
     #endregion
 }

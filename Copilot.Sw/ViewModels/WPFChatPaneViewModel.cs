@@ -157,6 +157,28 @@ public partial class WPFChatPaneViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ClearConversation()
+    {
+        Conversation.Clear();
+        OnPropertyChanged(nameof(HasItem));
+    }
+
+    [RelayCommand]
+    private async Task UsePromptAsync(string? prompt)
+    {
+        if (string.IsNullOrWhiteSpace(prompt))
+        {
+            return;
+        }
+
+        Question = prompt;
+        if (SendCommand.CanExecute(null))
+        {
+            await SendCommand.ExecuteAsync(null).ConfigureAwait(true);
+        }
+    }
+
+    [RelayCommand]
     protected void OpenSettings()
     {
         try
@@ -172,11 +194,11 @@ public partial class WPFChatPaneViewModel : ObservableObject
             {
                 settingWindow.Save();
             }
-    OnPropertyChanged(nameof(IsConfigured));
+
+            BuildKernel();
+            OnPropertyChanged(nameof(IsConfigured));
             OnPropertyChanged(nameof(CurrentModel));
             SendCommand.NotifyCanExecuteChanged();
-        
-            BuildKernel();
         }
         catch (Exception ex)
         {

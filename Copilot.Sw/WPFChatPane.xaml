@@ -46,6 +46,7 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Image
                     Grid.Column="0"
@@ -76,6 +77,14 @@
                 </Border>
                 <Button
                     Grid.Column="4"
+                    Padding="6"
+                    Command="{Binding ClearConversationCommand}"
+                    IsEnabled="{Binding HasItem}"
+                    ToolTip="New conversation">
+                    <ui:SymbolIcon Symbol="ChatAdd24" />
+                </Button>
+                <Button
+                    Grid.Column="5"
                     Padding="6"
                     Command="{Binding OpenSettingsCommand}"
                     ToolTip="Settings">
@@ -272,12 +281,41 @@
                 FontWeight="SemiBold"
                 Text="How can I help with your model?" />
             <TextBlock
-                Margin="0,0,0,8"
+                Margin="0,0,0,16"
                 HorizontalAlignment="Center"
                 Foreground="#666"
                 Text="Ask me to sketch, create features, or explain part geometry."
                 TextAlignment="Center"
                 TextWrapping="Wrap" />
+            <TextBlock
+                Margin="4,0,4,6"
+                HorizontalAlignment="Center"
+                FontSize="11"
+                Foreground="#888"
+                Text="Try one of these:" />
+            <ItemsControl>
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel HorizontalAlignment="Center" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.Resources>
+                    <Style x:Key="StarterChipStyle" TargetType="Button">
+                        <Setter Property="Margin" Value="4" />
+                        <Setter Property="Padding" Value="10,6" />
+                        <Setter Property="Background" Value="White" />
+                        <Setter Property="BorderBrush" Value="#19000000" />
+                        <Setter Property="BorderThickness" Value="1" />
+                        <Setter Property="Cursor" Value="Hand" />
+                        <Setter Property="Command" Value="{Binding DataContext.UsePromptCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                        <Setter Property="CommandParameter" Value="{Binding Content, RelativeSource={RelativeSource Self}}" />
+                    </Style>
+                </ItemsControl.Resources>
+                <Button Style="{StaticResource StarterChipStyle}" Content="Create a new part document" />
+                <Button Style="{StaticResource StarterChipStyle}" Content="Sketch a 50mm circle on the front plane" />
+                <Button Style="{StaticResource StarterChipStyle}" Content="Draw a 100x40 rectangle" />
+                <Button Style="{StaticResource StarterChipStyle}" Content="What skills do you have?" />
+            </ItemsControl>
         </StackPanel>
     </Grid>
 </UserControl>

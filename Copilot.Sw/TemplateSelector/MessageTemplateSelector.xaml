@@ -11,117 +11,114 @@
         <templateSelector:MessageTemplateSelector.AskDataTemplate>
             <DataTemplate DataType="model:AskMessage">
                 <Border
-                    Margin="5,10"
-                    Padding="5"
-                    Background="White"
-                    BorderBrush="#19000000"
-                    BorderThickness="1"
-                    CornerRadius="12">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition />
-                            <ColumnDefinition Width="32" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock
-                            Margin="10,2"
-                            FontSize="14"
-                            Text="{Binding Content}"
-                            TextWrapping="Wrap" />
-                        <Border
-                            Grid.Column="1"
-                            Width="32"
-                            Height="32"
-                            VerticalAlignment="Top"
-                            CornerRadius="32">
-                            <Image Source="{StaticResource AvatarDrawingImage}" />
-                        </Border>
-                    </Grid>
+                    MaxWidth="320"
+                    Margin="40,6,8,6"
+                    Padding="10,8"
+                    HorizontalAlignment="Right"
+                    Background="#2563EB"
+                    CornerRadius="12,12,2,12">
+                    <TextBlock
+                        FontSize="13"
+                        Foreground="White"
+                        Text="{Binding Content}"
+                        TextWrapping="Wrap" />
                 </Border>
             </DataTemplate>
         </templateSelector:MessageTemplateSelector.AskDataTemplate>
         <templateSelector:MessageTemplateSelector.AnswerDataTemplate>
             <DataTemplate DataType="model:AnswerMessage">
-                <Border
-                    Margin="5,10"
-                    Padding="5"
-                    Background="White"
-                    BorderBrush="#19000000"
-                    BorderThickness="1"
-                    CornerRadius="12">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="32" />
-                            <ColumnDefinition />
-                        </Grid.ColumnDefinitions>
+                <Grid Margin="8,6,40,6" HorizontalAlignment="Left">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Image
+                        Width="22"
+                        Height="22"
+                        VerticalAlignment="Top"
+                        Source="{StaticResource CopilotDrawingImage}" />
+                    <Border
+                        Grid.Column="1"
+                        Margin="6,0,0,0"
+                        Padding="10,8"
+                        Background="White"
+                        BorderBrush="#19000000"
+                        BorderThickness="1"
+                        CornerRadius="12,12,12,2">
                         <TextBlock
-                            Grid.Column="1"
-                            Margin="10,2"
-                            FontSize="14"
+                            FontSize="13"
                             Text="{Binding Content}"
                             TextWrapping="Wrap" />
-                        <Image
-                            Width="28"
-                            Height="28"
-                            VerticalAlignment="Top"
-                            Source="{StaticResource CopilotDrawingImage}" />
-                    </Grid>
-                </Border>
+                    </Border>
+                </Grid>
             </DataTemplate>
         </templateSelector:MessageTemplateSelector.AnswerDataTemplate>
         <templateSelector:MessageTemplateSelector.ActionAnswerDataTemplate>
             <DataTemplate DataType="model:ActionAnswerMessage">
-                <Border
-                    Margin="5,10"
-                    Padding="5"
-                    Background="White"
-                    BorderBrush="#19000000"
-                    BorderThickness="1"
-                    CornerRadius="12">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="32" />
-                            <ColumnDefinition />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="40" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-                        <TextBlock
-                            Grid.Column="1"
-                            Margin="10,2"
-                            FontSize="14"
-                            Text="{Binding Content}"
-                            TextWrapping="Wrap" />
-                        <Image
-                            Width="28"
-                            Height="28"
-                            VerticalAlignment="Top"
-                            Source="{StaticResource CopilotDrawingImage}" />
-                        <TreeView
-                            Grid.Row="1"
-                            Grid.ColumnSpan="2"
-                            ItemsSource="{Binding PlanModel.ExecuteSkills}">
-                            <TreeView.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock
-                                        Foreground="Black"
-                                        Text="{Binding SkillName}"
-                                        ToolTip="{Binding Description}" />
-                                </DataTemplate>
-                            </TreeView.ItemTemplate>
-                        </TreeView>
-                    </Grid>
-                </Border>
+                <Grid Margin="8,6,40,6" HorizontalAlignment="Left">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Image
+                        Width="22"
+                        Height="22"
+                        VerticalAlignment="Top"
+                        Source="{StaticResource CopilotDrawingImage}" />
+                    <Border
+                        Grid.Column="1"
+                        Margin="6,0,0,0"
+                        Padding="10,8"
+                        Background="White"
+                        BorderBrush="#19000000"
+                        BorderThickness="1"
+                        CornerRadius="12,12,12,2">
+                        <StackPanel>
+                            <TextBlock
+                                FontSize="13"
+                                Text="{Binding Content}"
+                                TextWrapping="Wrap" />
+                            <TreeView
+                                Margin="0,6,0,0"
+                                BorderThickness="0"
+                                Background="Transparent"
+                                ItemsSource="{Binding PlanModel.ExecuteSkills}">
+                                <TreeView.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock
+                                            FontSize="12"
+                                            Foreground="#333"
+                                            Text="{Binding SkillName}"
+                                            ToolTip="{Binding Description}" />
+                                    </DataTemplate>
+                                </TreeView.ItemTemplate>
+                            </TreeView>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </DataTemplate>
         </templateSelector:MessageTemplateSelector.ActionAnswerDataTemplate>
         <templateSelector:MessageTemplateSelector.ErrorDataTemplate>
             <DataTemplate DataType="model:ErrorMessage">
                 <Border
-                    Margin="5"
-                    BorderBrush="#19000000"
+                    Margin="8,6"
+                    Padding="10,8"
+                    Background="#FEF2F2"
+                    BorderBrush="#FCA5A5"
                     BorderThickness="1"
-                    CornerRadius="5">
-                    <TextBlock Foreground="Red" Text="{Binding Content}" />
+                    CornerRadius="8">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:SymbolIcon
+                            Margin="0,0,8,0"
+                            VerticalAlignment="Top"
+                            Foreground="#B91C1C"
+                            Symbol="ErrorCircle24" />
+                        <TextBlock
+                            FontSize="13"
+                            Foreground="#B91C1C"
+                            Text="{Binding Content}"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
                 </Border>
             </DataTemplate>
         </templateSelector:MessageTemplateSelector.ErrorDataTemplate>

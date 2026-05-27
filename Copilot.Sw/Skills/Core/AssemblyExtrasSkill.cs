@@ -309,6 +309,116 @@ public sealed class AssemblyExtrasSkill : SldWorksSkillContext
         return show ? $"Exploded '{name}'." : $"Collapsed '{name}'.";
     }
 
+    [KernelFunction(nameof(CreateExplodedView))]
+    [Description("Author a new exploded view on the active configuration. " +
+        "'stepsJson' is a JSON array of translational explode steps: " +
+        "`[{ \"components\": [\"Bolt-1@Asm\"], \"axis\": \"X|Y|Z\", \"distanceMm\": 50, \"reverse\": false }, ...]`. " +
+        "Each step selects the listed components and translates them along the chosen global axis by " +
+        "the requested distance. SolidWorks auto-names the resulting view (typically ExplViewN); call " +
+        "ListExplodedViews afterwards to discover the name.")]
+    public string CreateExplodedView(string stepsJson)
+    {
+        if (string.IsNullOrWhiteSpace(stepsJson))
+        {
+            throw new ArgumentException("stepsJson is required.", nameof(stepsJson));
+        }
+
+        ExplodeStepInput[]? steps;
+        try
+        {
+            steps = JsonSerializer.Deserialize<ExplodeStepInput[]>(stepsJson,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch (JsonException ex)
+        {
+            throw new ArgumentException(
+                $"stepsJson is not valid JSON: {ex.Message}", nameof(stepsJson));
+        }
+        if (steps is null || steps.Length == 0)
+        {
+            throw new ArgumentException("stepsJson must contain at least one step.", nameof(stepsJson));
+        }
+
+        var assy = RequireAssembly();
+        var doc = (IModelDoc2)assy;
+        var config = doc.ConfigurationManager?.ActiveConfiguration
+            ?? throw new InvalidOperationException("No active configuration on the assembly.");
+
+        var before = (assy.GetExplodedViewNames2(string.Empty) as string[] ?? Array.Empty<string>())
+            .ToHashSet(StringComparer.Ordinal);
+
+        var added = 0;
+        for (var i = 0; i < steps.Length; i++)
+        {
+            var step = steps[i];
+            if (step is null || step.Components is null || step.Components.Length == 0)
+            {
+                throw new ArgumentException(
+                    $"Step {i + 1}: at least one component name is required.");
+            }
+
+            doc.ClearSelection2(true);
+            foreach (var name in step.Components)
+            {
+                var comp = assy.GetComponentByName(name)
+                    ?? throw new InvalidOperationException(
+                        $"Step {i + 1}: component '{name}' not found.");
+                if (!comp.Select4(true, null, false))
+                {
+                    throw new InvalidOperationException(
+                        $"Step {i + 1}: could not select '{name}'.");
+                }
+            }
+
+            var axisIdx = step.Axis?.Trim().ToUpperInvariant() switch
+            {
+                "X" or "" or null => (int)swExplodeDirectionIndex_e.swExplodeDirectionIndex_XAxis,
+                "Y" => (int)swExplodeDirectionIndex_e.swExplodeDirectionIndex_YAxis,
+                "Z" => (int)swExplodeDirectionIndex_e.swExplodeDirectionIndex_ZAxis,
+                _ => throw new ArgumentException(
+                    $"Step {i + 1}: axis must be X, Y or Z (got '{step.Axis}')."),
+            };
+
+            var distMeters = step.DistanceMm / 1000.0;
+            // AddExplodeStep2(distance, translationAxisType, reverseTranslation,
+            //                 rotationAngle, rotationAxisType, reverseRotation,
+            //                 autoSpaceComponents, divergeFromAxis, out errors)
+            var result = config.AddExplodeStep2(
+                distMeters,
+                axisIdx,
+                step.Reverse,
+                0.0,
+                axisIdx,
+                false,
+                false,
+                false,
+                out int errors);
+            if (result is null || errors != 0)
+            {
+                throw new InvalidOperationException(
+                    $"Step {i + 1}: AddExplodeStep2 failed (errors={errors}).");
+            }
+            added++;
+        }
+
+        var after = assy.GetExplodedViewNames2(string.Empty) as string[] ?? Array.Empty<string>();
+        var created = after.FirstOrDefault(n => !before.Contains(n));
+        return JsonSerializer.Serialize(new
+        {
+            stepsAdded = added,
+            createdView = created,
+            allViews = after,
+        });
+    }
+
+    private sealed class ExplodeStepInput
+    {
+        public string[] Components { get; set; } = Array.Empty<string>();
+        public string? Axis { get; set; }
+        public double DistanceMm { get; set; }
+        public bool Reverse { get; set; }
+    }
+
     // -------- Helpers --------
 
     private IAssemblyDoc RequireAssembly()

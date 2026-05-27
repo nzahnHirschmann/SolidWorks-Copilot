@@ -159,7 +159,14 @@ breaks in the same way.
 - [x] `ListMates()`, `GetBoM(topLevelOnly)` — flat BoM with quantities
 - [x] `ListExplodedViews()`, `ShowExplodedView(name, show)` — toggle
   pre-defined exploded views (configuration-scoped)
-- [ ] `ExplodedView(steps[])`
+- [x] `CreateExplodedView(stepsJson)` — author a new exploded view on
+  the active configuration. `stepsJson` is a JSON array of translational
+  steps: `[{ "components": ["Bolt-1@Asm"], "axis": "X|Y|Z", "distanceMm": 50, "reverse": false }, …]`.
+  Each step selects the listed components and calls
+  `IConfiguration.AddExplodeStep2` with the requested axis (mapped via
+  `swExplodeDirectionIndex_e`) and distance (mm → m). SolidWorks
+  auto-names the resulting view; the call returns the new name plus the
+  full list so the LLM can immediately `ShowExplodedView` it.
 - [x] **Interference detection**: `RunInterferenceDetection()` →
   component pairs + volumes. This is half of *“check accuracy”* in
   assemblies.

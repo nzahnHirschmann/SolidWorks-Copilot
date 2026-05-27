@@ -69,54 +69,59 @@ breaks in the same way.
 - [x] `CreateLine(x1,y1,x2,y2)` / `CreatePolyline(points[])`
 - [x] `CreateRectangle(x,y,w,h)` — corner + center variants
 - [x] `CreateArc(...)` — 3-point and center+radius+sweep
-- [ ] `CreateSlot(...)`, `CreateEllipse(...)`, `CreatePoint(...)`
+- [x] `CreateSlot(...)` (straight + arc), `CreateEllipse(...)`, `CreatePoint(...)`
 - [x] `CreatePolygon(...)` (bonus — was not in original plan)
-- [ ] `SetConstructionGeometry(flag)`
+- [x] `ToggleConstructionGeometry()` (acts on selection)
 - [x] `SketchOffset(distance)` (offsets the current selection / chain)
-- [ ] `TrimEntities`, `MirrorEntities(axis)`,
-  `LinearSketchPattern`, `CircularSketchPattern`
-- [ ] `AddRelation(entities[], type)` — Horizontal, Vertical, Coincident,
-  Equal, Tangent, Perpendicular, Parallel, Concentric
-- [ ] `AddDimension(entity, value)` / `AddSmartDimension(...)`
+- [x] `SketchTrim(x, y, trimType)`, `LinearSketchPattern`, `CircularSketchPattern`
+- [ ] `MirrorEntities(axis)`
+- [x] `AddRelation(type)` — Horizontal, Vertical, Coincident, Collinear,
+  Concentric, Equal, Tangent, Perpendicular, Parallel, Fix, Midpoint,
+  Symmetric (acts on selection)
+- [x] `AddDimension(x, y, value?)` / smart-dimension at screen point
 
 ### 2.2 Reference geometry
 
 - [x] **P1.2 — Reference plane (offset)** via
-  `CreateOffsetPlane(sourcePlane, distance)`. Axis / coord-system / point
-  still pending.
-- [ ] `CreateAxis(...)`, `CreateCoordinateSystem(...)`, `CreatePoint(...)`
+  `CreateOffsetPlane(sourcePlane, distance)`
+- [x] `CreateAxis(...)`, `CreateCoordinateSystem(...)`, `CreateReferencePoint(...)`
 
 ### 2.3 Features — boss / cut
 
 - [x] `Extrude(sketch, depth, direction, draft, thinWall)` and
   `ExtrudeCut(...)`
 - [x] `Revolve(sketch, axis, angle)` / `RevolveCut(...)`
-- [ ] `Sweep(profile, path, options)` / `SweepCut`
-- [ ] `Loft(profiles[], guideCurves[], options)` / `LoftCut`
+- [x] `Sweep(profileSketch, pathSketch)` / `SweepCut`
+- [x] `Loft(profiles[])` / `LoftCut`
 - [ ] `BoundarySurface(...)` (advanced shapes)
 
 ### 2.4 Modify features
 
 - [x] `Fillet(edges[], radius, type)`, `Chamfer(edges[], distance, angle)`
-- [ ] `Shell(faces[], thickness)`
-- [ ] `Draft(faces[], angle, neutralPlane)`
-- [ ] `Hole` / `HoleWizard(spec, points[])` — biggest single productivity
-  win
+- [x] `Shell(thickness, outward)` (selection-based face removal)
+- [x] `Draft(angleDegrees, flip)` (neutral plane + faces pre-selected)
+- [x] `SimpleHole(diameter, depth, throughAll)` — basic hole
+- [ ] `HoleWizard(spec, points[])` (HoleWizard5 is wired in the API but
+  the spec-driven wrapper is still pending)
 - [ ] `Thread(face, spec)`
 - [x] `LinearPattern`, `CircularPattern`, `MirrorFeature`
 
 ### 2.5 Body / surfacing
 
-- [ ] `CombineBodies(op, bodies[])` (Add / Subtract / Common)
-- [ ] `SplitBody(...)`, `MoveCopyBody(...)`, `DeleteBody(...)`
-- [ ] `Thicken(surface, thickness)`, `KnitSurfaces(...)`,
-  `TrimSurface(...)`
+- [ ] `CombineBodies(op, bodies[])` (Add / Subtract / Common) — needs
+  Body2 enumeration helper
+- [x] `MoveCopyBody(...)`, `DeleteBody(...)`
+- [ ] `SplitBody(...)`
+- [x] `ThickenSurface(thickness, direction)`
+- [ ] `KnitSurfaces(...)`, `TrimSurface(...)`
 
 ### 2.6 Configurations & equations
 
-- [ ] `AddConfiguration(name, parent)`, `SetActiveConfiguration(name)`
-- [ ] `AddGlobalVariable(name, expression)`
-- [ ] `AddEquation("D1@Sketch1 = D2@Sketch2 * 2")`
+- [x] `AddConfiguration(name, comment?)`, `ActivateConfiguration(name)`,
+  `ListConfigurations()`
+- [x] `AddEquation("\"D1@Sketch1\" = \"D2@Sketch2\" * 2")` — global
+  variables fall out of this naturally
+- [ ] Dedicated `AddGlobalVariable(name, expression)` wrapper
 
 ### 2.7 Materials & mass
 

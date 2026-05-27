@@ -58,4 +58,56 @@ public sealed class ReferenceGeometrySkill : SldWorksSkillContext
         return ActiveSwDoc
             ?? throw new InvalidOperationException("No active SolidWorks document.");
     }
+
+    [KernelFunction(nameof(CreateAxis))]
+    [Description("Create a reference axis. Pre-select the entities that " +
+        "define the axis (one edge, two planes, two points, or a " +
+        "cylindrical/conical face). Returns the new axis's name.")]
+    public string CreateAxis(bool autoSize = true)
+    {
+        var doc = RequireActiveDoc();
+        doc.InsertAxis2(autoSize);
+        if (doc.SelectionManager is ISelectionMgr sm
+            && sm.GetSelectedObject6(1, -1) is IFeature feat)
+        {
+            return feat.Name;
+        }
+        return "Axis";
+    }
+
+    [KernelFunction(nameof(CreateReferencePoint))]
+    [Description("Create a reference point. Pre-select the geometry it " +
+        "should be derived from (vertex, edge midpoint, face centre, etc.).")]
+    public string CreateReferencePoint()
+    {
+        var doc = RequireActiveDoc();
+        var feat = doc.FeatureManager.InsertReferencePoint(
+            (int)swRefPointType_e.swRefPointFaceCenter,
+            0,
+            0,
+            1) as IFeature;
+        return feat?.Name
+            ?? throw new InvalidOperationException(
+                "CreateReferencePoint failed. Pre-select a valid entity.");
+    }
+
+    [KernelFunction(nameof(CreateCoordinateSystem))]
+    [Description("Create a coordinate system feature at the currently " +
+        "selected origin (and optionally axis-defining entities).")]
+    public string CreateCoordinateSystem(bool flipX = false, bool flipY = false, bool flipZ = false)
+    {
+        var doc = RequireActiveDoc();
+        if (!doc.InsertCoordinateSystem(flipX, flipY, flipZ))
+        {
+            throw new InvalidOperationException(
+                "InsertCoordinateSystem failed. Pre-select an origin point " +
+                "(and optionally axis-defining entities).");
+        }
+        if (doc.SelectionManager is ISelectionMgr sm
+            && sm.GetSelectedObject6(1, -1) is IFeature f)
+        {
+            return f.Name;
+        }
+        return "Coordinate System";
+    }
 }
